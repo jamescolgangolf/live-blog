@@ -1287,14 +1287,14 @@
   // ============================================================
   // CONFIG
   // ============================================================
-  const WORKER_URL    = 'https://red-morning-755a.james-colgan.workers.dev';
-  const POLL_INTERVAL = 30000; // 30 seconds
+  var WORKER_URL    = 'https://red-morning-755a.james-colgan.workers.dev';
+  var POLL_INTERVAL = 30000;
 
   // ============================================================
   // STATE
   // ============================================================
-  let knownIds       = new Set();
-  let pendingUpdates = [];
+  var knownIds       = {};
+  var pendingUpdates = [];
 
   // ============================================================
   // INIT
@@ -1317,7 +1317,7 @@
   }
 
   // ============================================================
-  // FETCH UPDATES FROM WORKER
+  // FETCH
   // ============================================================
   function fetchUpdates(isInitialLoad) {
     fetch(WORKER_URL)
@@ -1326,18 +1326,18 @@
         return res.json();
       })
       .then(function(data) {
-        if (!data.updates) return;
-
         if (isInitialLoad) {
-          renderInitialUpdates(data.updates);
-          if (data.config) applyConfig(data.config);
+          if (data.updates) renderInitialUpdates(data.updates);
+          if (data.config)  applyConfig(data.config);
         } else {
-          var newUpdates = data.updates.filter(function(u) {
-            return !knownIds.has(u.id);
-          });
-          if (newUpdates.length > 0) {
-            pendingUpdates = newUpdates;
-            showNewUpdateBar(newUpdates.length);
+          if (!data.updates) return;
+          var newOnes = [];
+          for (var i = 0; i < data.updates.length; i++) {
+            if (!knownIds[data.updates[i].id]) newOnes.push(data.updates[i]);
+          }
+          if (newOnes.length > 0) {
+            pendingUpdates = newOnes;
+            showNewUpdateBar(newOnes.length);
           }
         }
       })
@@ -1347,42 +1347,77 @@
   }
 
   // ============================================================
-  // APPLY CONFIG FROM AIRTABLE CONFIG TABLE
+  // APPLY CONFIG
   // ============================================================
   function applyConfig(config) {
-    // Read More button URL and label
-    if (config.read_more_url) {
-      var btns = document.querySelectorAll('.read-more-btn');
-      btns.forEach(function(btn) { btn.href = config.read_more_url; });
-    }
-    if (config.read_more_label) {
-      var btns = document.querySelectorAll('.read-more-btn');
-      btns.forEach(function(btn) { btn.textContent = config.read_more_label; });
-    }
-    // Hero title
+    // Hero elements
     if (config.blog_title) {
       var el = document.querySelector('.blog-title');
       if (el) el.textContent = config.blog_title;
     }
-    // Hero dek
     if (config.blog_dek) {
       var el = document.querySelector('.blog-dek');
       if (el) el.textContent = config.blog_dek;
     }
-    // Event label (e.g. "PGA Tour - Masters Week")
     if (config.event_label) {
       var el = document.querySelector('.blog-category');
       if (el) el.textContent = config.event_label;
     }
-    // Byline authors
     if (config.byline_authors) {
       var el = document.querySelector('.byline-authors');
       if (el) el.textContent = config.byline_authors;
     }
-    // Location
     if (config.location) {
-      var els = document.querySelectorAll('.blog-byline-row span:last-child');
+      var els = document.querySelectorAll('.blog-byline-row span');
       if (els.length) els[els.length - 1].textContent = config.location;
+    }
+
+    // Read More button
+    if (config.read_more_url || config.read_more_label) {
+      var btns = document.querySelectorAll('.read-more-btn');
+      for (var i = 0; i < btns.length; i++) {
+        if (config.read_more_url)   btns[i].href        = config.read_more_url;
+        if (config.read_more_label) btns[i].textContent = config.read_more_label;
+      }
+    }
+
+    // Reporters sidebar -- supports up to 8 reporters
+    var reporterNums = [1, 2, 3, 4, 5, 6, 7, 8];
+    var reporters    = [];
+    for (var i = 0; i < reporterNums.length; i++) {
+      var n    = reporterNums[i];
+      var name = config['reporter_' + n + '_name'];
+      if (!name) continue;
+      reporters.push({
+        name:     name,
+        title:    config['reporter_' + n + '_title']    || '',
+        initials: config['reporter_' + n + '_initials'] || name.charAt(0),
+      });
+    }
+    if (reporters.length > 0) renderReporters(reporters);
+
+    // Page title
+    if (config.blog_title) document.title = config.blog_title + ' -- GOLF.com';
+  }
+
+  // ============================================================
+  // RENDER REPORTERS SIDEBAR
+  // ============================================================
+  function renderReporters(reporters) {
+    var container = document.querySelector('.authors-list');
+    if (!container) return;
+    container.innerHTML = '';
+    for (var i = 0; i < reporters.length; i++) {
+      var r    = reporters[i];
+      var item = document.createElement('div');
+      item.className = 'author-item';
+      item.innerHTML =
+        '<div class="author-avatar">' + escapeHtml(r.initials) + '</div>' +
+        '<div class="author-info">' +
+          '<div class="author-name">'  + escapeHtml(r.name)  + '</div>' +
+          '<div class="author-role">'  + escapeHtml(r.title) + '</div>' +
+        '</div>';
+      container.appendChild(item);
     }
   }
 
@@ -1390,40 +1425,70 @@
   // INITIAL RENDER
   // ============================================================
   function renderInitialUpdates(updates) {
-    var stream = document.getElementById('stream');
-
-    // Remove demo update items
+    var stream  = document.getElementById('stream');
     var existing = stream.querySelectorAll('.update-item');
-    existing.forEach(function(el) { el.remove(); });
+    for (var i = 0; i < existing.length; i++) existing[i].remove();
 
-    // Update post count
     var countEl = document.getElementById('update-count');
     if (countEl) {
       countEl.textContent = updates.length + (updates.length === 1 ? ' post' : ' posts');
     }
 
-    if (!updates.length) {
-      showEmptyState();
+    if (!updates.length) { showEmptyState(); return; }
+
+    for (var i = 0; i < updates.length; i++) {
+      stream.insertAdjacentHTML('beforeend', buildUpdateHTML(updates[i], i === updates.length - 1));
+      knownIds[updates[i].id] = true;
+    }
+
+    // Populate key moments sidebar from real data
+    renderKeyMoments(updates);
+  }
+
+  // ============================================================
+  // KEY MOMENTS SIDEBAR -- auto-built from breaking + key updates
+  // ============================================================
+  function renderKeyMoments(updates) {
+    var container = document.querySelector('.key-moment-list');
+    if (!container) return;
+
+    var notable = updates.filter(function(u) {
+      return u.type === 'breaking' || u.type === 'key';
+    });
+
+    if (!notable.length) {
+      container.closest('.sidebar-card').style.display = 'none';
       return;
     }
 
-    // Render each update
-    updates.forEach(function(update, index) {
-      var isLast = index === updates.length - 1;
-      stream.insertAdjacentHTML('beforeend', buildUpdateHTML(update, isLast));
-      knownIds.add(update.id);
-    });
+    container.innerHTML = '';
+    // Show up to 5 key moments
+    var limit = Math.min(notable.length, 5);
+    for (var i = 0; i < limit; i++) {
+      var u    = notable[i];
+      var time = u.timestamp ? formatTimeShort(u.timestamp) : '';
+      var item = document.createElement('li');
+      item.className = 'key-moment-item';
+      item.setAttribute('onclick', 'scrollToUpdate("u-' + u.id + '")');
+      item.innerHTML =
+        '<span class="key-moment-time">' + time + '</span>' +
+        '<span class="key-moment-text">' + escapeHtml(u.headline) + '</span>';
+      container.appendChild(item);
+    }
+  }
+
+  function scrollToUpdate(id) {
+    var el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   // ============================================================
   // NEW UPDATE BAR
   // ============================================================
   function showNewUpdateBar(count) {
-    var bar = document.getElementById('new-bar');
+    var bar  = document.getElementById('new-bar');
     var span = bar.querySelector('span');
-    if (span) {
-      span.textContent = count + ' new update' + (count > 1 ? 's' : '') + ' -- click to load';
-    }
+    if (span) span.textContent = count + ' new update' + (count > 1 ? 's' : '') + ' -- click to load';
     bar.style.display = 'flex';
   }
 
@@ -1435,21 +1500,19 @@
     var stream      = document.getElementById('stream');
     var firstUpdate = stream.querySelector('.update-item');
 
-    pendingUpdates.forEach(function(update) {
-      var html = buildUpdateHTML(update, false);
+    for (var i = 0; i < pendingUpdates.length; i++) {
+      var html = buildUpdateHTML(pendingUpdates[i], false);
       if (firstUpdate) {
         firstUpdate.insertAdjacentHTML('beforebegin', html);
       } else {
         stream.insertAdjacentHTML('beforeend', html);
       }
-      knownIds.add(update.id);
-    });
-
-    var total = knownIds.size;
-    var countEl = document.getElementById('update-count');
-    if (countEl) {
-      countEl.textContent = total + (total === 1 ? ' post' : ' posts');
+      knownIds[pendingUpdates[i].id] = true;
     }
+
+    var total   = Object.keys(knownIds).length;
+    var countEl = document.getElementById('update-count');
+    if (countEl) countEl.textContent = total + (total === 1 ? ' post' : ' posts');
 
     pendingUpdates = [];
     stream.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1465,27 +1528,28 @@
 
     var badge = '';
     if (update.type === 'breaking') {
-      badge = '<span class="update-badge badge-breaking">&#9889; Breaking</span>';
+      badge = '<span class="update-badge badge-breaking">Breaking</span>';
     } else if (update.type === 'key') {
-      badge = '<span class="update-badge badge-key">&#9733; Key Moment</span>';
+      badge = '<span class="update-badge badge-key">Key Moment</span>';
     }
 
     var timeLabel = update.timestamp ? formatTime(update.timestamp) : '';
 
     var bodyParts = update.body.split('\n').filter(function(p) { return p.trim(); });
     var bodyHTML  = bodyParts.map(function(p) { return '<p>' + escapeHtml(p) + '</p>'; }).join('');
+    if (!bodyHTML) bodyHTML = '<p>' + escapeHtml(update.body) + '</p>';
 
     var mediaHTML = '';
     if (update.mediaUrl) {
-      mediaHTML = '<div class="update-media">' +
+      mediaHTML =
+        '<div class="update-media">' +
         '<img src="' + escapeHtml(update.mediaUrl) + '" alt="' + escapeHtml(update.mediaCaption || '') + '" loading="lazy">' +
         (update.mediaCaption ? '<div class="update-media-caption">' + escapeHtml(update.mediaCaption) + '</div>' : '') +
         '</div>';
     }
 
     var timelineLine = isLast ? '' : '<div class="timeline-line"></div>';
-
-    var authorTitle = update.authorTitle
+    var authorTitle  = update.authorTitle
       ? '<div class="update-author-title">' + escapeHtml(update.authorTitle) + '</div>'
       : '';
 
@@ -1502,7 +1566,7 @@
         mediaHTML +
         '<div class="update-footer">' +
           '<div>' +
-            '<div class="update-author">' + escapeHtml(update.author) + '</div>' +
+            '<div class="update-author">'  + escapeHtml(update.author) + '</div>' +
             authorTitle +
           '</div>' +
           '<div class="update-share">' +
@@ -1536,7 +1600,17 @@
     return h12 + ':' + m + '<br>' + ampm;
   }
 
+  function formatTimeShort(isoString) {
+    var d    = new Date(isoString);
+    var h    = d.getHours();
+    var m    = d.getMinutes().toString().padStart(2, '0');
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    var h12  = h % 12 || 12;
+    return h12 + ':' + m + ' ' + ampm;
+  }
+
   function escapeHtml(str) {
+    if (!str) return '';
     var d = document.createElement('div');
     d.appendChild(document.createTextNode(str));
     return d.innerHTML;
@@ -1566,18 +1640,19 @@
   var currentType = 'normal';
   function setType(type) {
     currentType = type;
-    ['normal', 'breaking', 'key'].forEach(function(t) {
-      var el = document.getElementById('type-' + t);
+    var types = ['normal', 'breaking', 'key'];
+    for (var i = 0; i < types.length; i++) {
+      var el = document.getElementById('type-' + types[i]);
       el.className = 'toggle-option';
-      if (t === type) el.classList.add('active-' + t);
-    });
+      if (types[i] === type) el.classList.add('active-' + types[i]);
+    }
   }
 
   function postUpdate() {
     alert('To post a live update, open Airtable, add a new row to Updates, and check Published.');
     toggleAdmin();
   }
-</script>
+</script></script>
 
 </body>
 </html>

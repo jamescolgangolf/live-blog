@@ -1289,113 +1289,154 @@
   // ============================================================
   const WORKER_URL    = 'https://red-morning-755a.james-colgan.workers.dev';
   const POLL_INTERVAL = 30000; // 30 seconds
-  const FULL_STORY_URL = '#';  // Replace with your full article URL
 
   // ============================================================
   // STATE
   // ============================================================
-  let lastSeenId      = null;  // ID of the most recent update we've rendered
-  let knownIds        = new Set();
-  let pendingUpdates  = [];
-  let pollTimer       = null;
+  let knownIds       = new Set();
+  let pendingUpdates = [];
 
   // ============================================================
   // INIT
   // ============================================================
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', function() {
     updateClock();
     setInterval(updateClock, 30000);
-    fetchUpdates(true); // true = initial load
-    pollTimer = setInterval(() => fetchUpdates(false), POLL_INTERVAL);
+    fetchUpdates(true);
+    setInterval(function() { fetchUpdates(false); }, POLL_INTERVAL);
   });
 
   // ============================================================
   // CLOCK
   // ============================================================
   function updateClock() {
-    const now  = new Date();
-    const opts = { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' };
-    const el   = document.getElementById('clock');
+    var now  = new Date();
+    var opts = { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' };
+    var el   = document.getElementById('clock');
     if (el) el.textContent = now.toLocaleTimeString('en-US', opts);
   }
 
   // ============================================================
   // FETCH UPDATES FROM WORKER
   // ============================================================
-  async function fetchUpdates(isInitialLoad) {
-    try {
-      const res  = await fetch(WORKER_URL);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+  function fetchUpdates(isInitialLoad) {
+    fetch(WORKER_URL)
+      .then(function(res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function(data) {
+        if (!data.updates) return;
 
-      if (!data.updates || !data.updates.length) {
-        if (isInitialLoad) showEmptyState();
-        return;
-      }
-
-      if (isInitialLoad) {
-        // First load — render all updates and clear demo content
-        renderInitialUpdates(data.updates);
-      } else {
-        // Subsequent polls — check for updates we haven't seen yet
-        const newUpdates = data.updates.filter(u => !knownIds.has(u.id));
-        if (newUpdates.length > 0) {
-          pendingUpdates = newUpdates;
-          showNewUpdateBar(newUpdates.length);
+        if (isInitialLoad) {
+          renderInitialUpdates(data.updates);
+          if (data.config) applyConfig(data.config);
+        } else {
+          var newUpdates = data.updates.filter(function(u) {
+            return !knownIds.has(u.id);
+          });
+          if (newUpdates.length > 0) {
+            pendingUpdates = newUpdates;
+            showNewUpdateBar(newUpdates.length);
+          }
         }
-      }
+      })
+      .catch(function(err) {
+        console.warn('Poll error:', err.message);
+      });
+  }
 
-    } catch (err) {
-      console.warn('Poll error:', err.message);
-      // Fail silently — don't disrupt readers if there's a temporary hiccup
+  // ============================================================
+  // APPLY CONFIG FROM AIRTABLE CONFIG TABLE
+  // ============================================================
+  function applyConfig(config) {
+    // Read More button URL and label
+    if (config.read_more_url) {
+      var btns = document.querySelectorAll('.read-more-btn');
+      btns.forEach(function(btn) { btn.href = config.read_more_url; });
+    }
+    if (config.read_more_label) {
+      var btns = document.querySelectorAll('.read-more-btn');
+      btns.forEach(function(btn) { btn.textContent = config.read_more_label; });
+    }
+    // Hero title
+    if (config.blog_title) {
+      var el = document.querySelector('.blog-title');
+      if (el) el.textContent = config.blog_title;
+    }
+    // Hero dek
+    if (config.blog_dek) {
+      var el = document.querySelector('.blog-dek');
+      if (el) el.textContent = config.blog_dek;
+    }
+    // Event label (e.g. "PGA Tour - Masters Week")
+    if (config.event_label) {
+      var el = document.querySelector('.blog-category');
+      if (el) el.textContent = config.event_label;
+    }
+    // Byline authors
+    if (config.byline_authors) {
+      var el = document.querySelector('.byline-authors');
+      if (el) el.textContent = config.byline_authors;
+    }
+    // Location
+    if (config.location) {
+      var els = document.querySelectorAll('.blog-byline-row span:last-child');
+      if (els.length) els[els.length - 1].textContent = config.location;
     }
   }
 
   // ============================================================
-  // INITIAL RENDER — replaces demo content with real data
+  // INITIAL RENDER
   // ============================================================
   function renderInitialUpdates(updates) {
-    const stream = document.getElementById('stream');
+    var stream = document.getElementById('stream');
 
-    // Remove all existing demo update-items
-    stream.querySelectorAll('.update-item').forEach(el => el.remove());
+    // Remove demo update items
+    var existing = stream.querySelectorAll('.update-item');
+    existing.forEach(function(el) { el.remove(); });
 
-    // Update count
-    document.getElementById('update-count').textContent =
-      updates.length + (updates.length === 1 ? ' post' : ' posts');
+    // Update post count
+    var countEl = document.getElementById('update-count');
+    if (countEl) {
+      countEl.textContent = updates.length + (updates.length === 1 ? ' post' : ' posts');
+    }
+
+    if (!updates.length) {
+      showEmptyState();
+      return;
+    }
 
     // Render each update
-    updates.forEach((update, index) => {
-      const isLast = index === updates.length - 1;
+    updates.forEach(function(update, index) {
+      var isLast = index === updates.length - 1;
       stream.insertAdjacentHTML('beforeend', buildUpdateHTML(update, isLast));
       knownIds.add(update.id);
     });
-
-    // Track the newest
-    if (updates.length > 0) lastSeenId = updates[0].id;
   }
 
   // ============================================================
-  // NEW UPDATE NOTIFICATION BAR
+  // NEW UPDATE BAR
   // ============================================================
   function showNewUpdateBar(count) {
-    const bar = document.getElementById('new-bar');
-    bar.querySelector('span').textContent =
-      `↑ ${count} new update${count > 1 ? 's' : ''} — click to load`;
+    var bar = document.getElementById('new-bar');
+    var span = bar.querySelector('span');
+    if (span) {
+      span.textContent = count + ' new update' + (count > 1 ? 's' : '') + ' -- click to load';
+    }
     bar.style.display = 'flex';
   }
 
   function loadNewUpdates() {
-    const bar = document.getElementById('new-bar');
+    var bar = document.getElementById('new-bar');
     bar.style.display = 'none';
-
     if (!pendingUpdates.length) return;
 
-    const stream      = document.getElementById('stream');
-    const firstUpdate = stream.querySelector('.update-item');
+    var stream      = document.getElementById('stream');
+    var firstUpdate = stream.querySelector('.update-item');
 
-    pendingUpdates.forEach(update => {
-      const html = buildUpdateHTML(update, false);
+    pendingUpdates.forEach(function(update) {
+      var html = buildUpdateHTML(update, false);
       if (firstUpdate) {
         firstUpdate.insertAdjacentHTML('beforebegin', html);
       } else {
@@ -1404,14 +1445,13 @@
       knownIds.add(update.id);
     });
 
-    // Update count
-    const total = knownIds.size;
-    document.getElementById('update-count').textContent =
-      total + (total === 1 ? ' post' : ' posts');
+    var total = knownIds.size;
+    var countEl = document.getElementById('update-count');
+    if (countEl) {
+      countEl.textContent = total + (total === 1 ? ' post' : ' posts');
+    }
 
-    lastSeenId     = pendingUpdates[0].id;
     pendingUpdates = [];
-
     stream.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -1419,127 +1459,122 @@
   // BUILD UPDATE HTML
   // ============================================================
   function buildUpdateHTML(update, isLast) {
-    const typeClass = update.type === 'breaking' ? 'is-breaking'
-                    : update.type === 'key'      ? 'is-key'
-                    : '';
+    var typeClass = '';
+    if (update.type === 'breaking') typeClass = 'is-breaking';
+    if (update.type === 'key')      typeClass = 'is-key';
 
-    const badge = update.type === 'breaking'
-      ? '<span class="update-badge badge-breaking">⚡ Breaking</span>'
-      : update.type === 'key'
-      ? '<span class="update-badge badge-key">★ Key Moment</span>'
+    var badge = '';
+    if (update.type === 'breaking') {
+      badge = '<span class="update-badge badge-breaking">&#9889; Breaking</span>';
+    } else if (update.type === 'key') {
+      badge = '<span class="update-badge badge-key">&#9733; Key Moment</span>';
+    }
+
+    var timeLabel = update.timestamp ? formatTime(update.timestamp) : '';
+
+    var bodyParts = update.body.split('\n').filter(function(p) { return p.trim(); });
+    var bodyHTML  = bodyParts.map(function(p) { return '<p>' + escapeHtml(p) + '</p>'; }).join('');
+
+    var mediaHTML = '';
+    if (update.mediaUrl) {
+      mediaHTML = '<div class="update-media">' +
+        '<img src="' + escapeHtml(update.mediaUrl) + '" alt="' + escapeHtml(update.mediaCaption || '') + '" loading="lazy">' +
+        (update.mediaCaption ? '<div class="update-media-caption">' + escapeHtml(update.mediaCaption) + '</div>' : '') +
+        '</div>';
+    }
+
+    var timelineLine = isLast ? '' : '<div class="timeline-line"></div>';
+
+    var authorTitle = update.authorTitle
+      ? '<div class="update-author-title">' + escapeHtml(update.authorTitle) + '</div>'
       : '';
 
-    const timeLabel = update.timestamp
-      ? formatTime(update.timestamp)
-      : '';
-
-    // Convert newlines to paragraphs
-    const bodyParts = update.body.split('\n').filter(function(p) { return p.trim(); });
-    const bodyHTML = bodyParts.map(function(p) { return '<p>' + escapeHtml(p) + '</p>'; }).join('');
-
-    const mediaHTML = update.mediaUrl
-      ? `<div class="update-media">
-           <img src="${escapeHtml(update.mediaUrl)}" alt="${escapeHtml(update.mediaCaption || '')}" loading="lazy">
-           ${update.mediaCaption
-             ? `<div class="update-media-caption">${escapeHtml(update.mediaCaption)}</div>`
-             : ''}
-         </div>`
-      : '';
-
-    const timelineLine = isLast ? '' : '<div class="timeline-line"></div>';
-
-    return `
-      <div class="update-item ${typeClass} is-new" id="u-${update.id}">
-        <div class="update-timeline">
-          <div class="update-time">${timeLabel}</div>
-          <div class="timeline-dot"></div>
-          ${timelineLine}
-        </div>
-        <div class="update-content">
-          ${badge}
-          <h2 class="update-headline">${escapeHtml(update.headline)}</h2>
-          <div class="update-body">${bodyHTML}</div>
-          ${mediaHTML}
-          <div class="update-footer">
-            <div>
-              <div class="update-author">${escapeHtml(update.author)}</div>
-              ${update.authorTitle
-                ? `<div class="update-author-title">${escapeHtml(update.authorTitle)}</div>`
-                : ''}
-            </div>
-            <div class="update-share">
-              <button class="share-btn" onclick="copyLink('u-${update.id}')">Copy link</button>
-            </div>
-          </div>
-        </div>
-      </div>`;
+    return '<div class="update-item ' + typeClass + ' is-new" id="u-' + update.id + '">' +
+      '<div class="update-timeline">' +
+        '<div class="update-time">' + timeLabel + '</div>' +
+        '<div class="timeline-dot"></div>' +
+        timelineLine +
+      '</div>' +
+      '<div class="update-content">' +
+        badge +
+        '<h2 class="update-headline">' + escapeHtml(update.headline) + '</h2>' +
+        '<div class="update-body">' + bodyHTML + '</div>' +
+        mediaHTML +
+        '<div class="update-footer">' +
+          '<div>' +
+            '<div class="update-author">' + escapeHtml(update.author) + '</div>' +
+            authorTitle +
+          '</div>' +
+          '<div class="update-share">' +
+            '<button class="share-btn" onclick="copyLink(this)" data-id="u-' + update.id + '">Copy link</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
   }
 
   // ============================================================
   // EMPTY STATE
   // ============================================================
   function showEmptyState() {
-    const stream = document.getElementById('stream');
-    stream.querySelectorAll('.update-item').forEach(el => el.remove());
-    stream.insertAdjacentHTML('beforeend', `
-      <div style="padding:3rem 0; text-align:center; color:var(--muted); font-family:var(--font-ui); font-size:0.9rem;">
-        No updates yet — coverage begins soon.
-      </div>`);
+    var stream = document.getElementById('stream');
+    stream.insertAdjacentHTML('beforeend',
+      '<div style="padding:3rem 0;text-align:center;color:var(--muted);font-family:var(--font-ui);font-size:0.9rem;">' +
+      'No updates yet -- coverage begins soon.' +
+      '</div>');
   }
 
   // ============================================================
   // UTILITIES
   // ============================================================
   function formatTime(isoString) {
-    const d    = new Date(isoString);
-    const h    = d.getHours();
-    const m    = d.getMinutes().toString().padStart(2, '0');
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const h12  = h % 12 || 12;
+    var d    = new Date(isoString);
+    var h    = d.getHours();
+    var m    = d.getMinutes().toString().padStart(2, '0');
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    var h12  = h % 12 || 12;
     return h12 + ':' + m + '<br>' + ampm;
   }
 
   function escapeHtml(str) {
-    const d = document.createElement('div');
+    var d = document.createElement('div');
     d.appendChild(document.createTextNode(str));
     return d.innerHTML;
   }
 
-  function copyLink(id) {
-    const url = window.location.href.split('#')[0] + '#' + id;
-    navigator.clipboard.writeText(url).then(() => {
-      alert('Link copied!');
-    }).catch(() => {
+  function copyLink(el) {
+    var id  = el.getAttribute('data-id');
+    var url = window.location.href.split('#')[0] + '#' + id;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(function() {
+        alert('Link copied!');
+      });
+    } else {
       prompt('Copy this link:', url);
-    });
+    }
   }
 
   // ============================================================
-  // ADMIN PANEL (reporter-facing — remove in production
-  // or gate behind a login check)
+  // ADMIN PANEL
   // ============================================================
-  let adminOpen = false;
+  var adminOpen = false;
   function toggleAdmin() {
     adminOpen = !adminOpen;
     document.getElementById('admin-panel').classList.toggle('is-open', adminOpen);
   }
 
-  let currentType = 'normal';
+  var currentType = 'normal';
   function setType(type) {
     currentType = type;
-    ['normal', 'breaking', 'key'].forEach(t => {
-      const el = document.getElementById('type-' + t);
+    ['normal', 'breaking', 'key'].forEach(function(t) {
+      var el = document.getElementById('type-' + t);
       el.className = 'toggle-option';
       if (t === type) el.classList.add('active-' + t);
     });
   }
 
-  // Note: the admin panel "Post Update" button in this HTML is
-  // a visual preview only — actual posting happens via Airtable.
-  // Reporters use Airtable directly; this panel can be removed
-  // from the public-facing file.
   function postUpdate() {
-    alert('To post a live update, open Airtable → Updates → add a new row and check Published.');
+    alert('To post a live update, open Airtable, add a new row to Updates, and check Published.');
     toggleAdmin();
   }
 </script>

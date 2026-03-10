@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Blog – Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  /* ============================================================
+     DESIGN TOKENS
+  ============================================================ */
+  :root {
+    --forest:       #07201B;
+    --forest-mid:   #0e3529;
+    --forest-light: #164a3a;
+    --accent:       #C8F55A;   /* neon lime — high-contrast on dark */
+    --accent-warm:  #F5C842;   /* gold for breaking news */
+    --red:          #E8372A;
+    --cream:        #F7F4EF;
+    --cream-dark:   #EDE9E1;
+    --ink:          #1A1A18;
+    --muted:        #6B6B63;
+    --rule:         #D9D5CC;
+    --white:        #FFFFFF;
+
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-body:    'Source Serif 4', Georgia, serif;
+    --font-ui:      'DM Sans', system-ui, sans-serif;
+
+    --radius:       4px;
+    --max-w:        720px;
+    --sidebar-w:    280px;
+  }
+
+  /* ============================================================
+     RESET & BASE
+  ============================================================ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 16px; scroll-behavior: smooth; }
+
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ============================================================
+     MASTHEAD / TOP BAR
+  ============================================================ */
+  .masthead {
+    background: var(--forest);
+    color: var(--white);
+    padding: 0 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 3px solid var(--accent);
+  }
+
+  .masthead-inner {
+    max-width: calc(var(--max-w) + var(--sidebar-w) + 4rem);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 52px;
+    gap: 1rem;
+  }
+
+  .masthead-logo {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    flex-shrink: 0;
+    opacity: 0.95;
+    transition: opacity 0.15s;
+  }
+  .masthead-logo:hover { opacity: 1; }
+
+
+  .read-more-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--forest);
+    background: var(--accent);
+    padding: 0.55rem 1rem;
+    border-radius: 2px;
+    text-decoration: none;
+    margin-bottom: 1.25rem;
+    transition: background 0.15s, transform 0.15s;
+    width: fit-content;
+  }
+  .read-more-btn:hover {
+    background: #d8ff6a;
+    transform: translateY(-1px);
+  }
+
+  .live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--white);
+    background: var(--red);
+    padding: 0.3rem 0.75rem;
+    border-radius: 2px;
+  }
+
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    background: var(--white);
+    border-radius: 50%;
+    animation: pulse 1.4s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  .masthead-meta {
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.55);
+    white-space: nowrap;
+  }
+
+  /* ============================================================
+     HERO HEADER
+  ============================================================ */
+  .blog-hero {
+    background: var(--forest);
+    color: var(--white);
+    padding: clamp(2rem, 5vw, 3.5rem) 1.25rem clamp(1.5rem, 4vw, 2.5rem);
+    border-bottom: 1px solid var(--forest-light);
+  }
+
+  .blog-hero-inner {
+    max-width: calc(var(--max-w) + var(--sidebar-w) + 4rem);
+    margin: 0 auto;
+  }
+
+  .blog-category {
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .blog-category::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 2px;
+    background: var(--accent);
+  }
+
+  .blog-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.75rem, 5vw, 2.75rem);
+    font-weight: 900;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: var(--white);
+    max-width: 680px;
+    margin-bottom: 1rem;
+  }
+
+  .blog-dek {
+    font-family: var(--font-body);
+    font-size: clamp(0.95rem, 2vw, 1.1rem);
+    color: rgba(255,255,255,0.7);
+    max-width: 600px;
+    line-height: 1.55;
+    margin-bottom: 1.25rem;
+  }
+
+  .blog-byline-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 1.25rem;
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.55);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 1rem;
+  }
+
+  .byline-authors {
+    color: rgba(255,255,255,0.85);
+    font-weight: 500;
+  }
+
+  .byline-sep { opacity: 0.3; }
+
+  /* ============================================================
+     LAYOUT
+  ============================================================ */
+  .blog-layout {
+    max-width: calc(var(--max-w) + var(--sidebar-w) + 4rem);
+    margin: 0 auto;
+    padding: 0 1.25rem 4rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  @media (min-width: 1024px) {
+    .blog-layout {
+      grid-template-columns: var(--max-w) 1fr;
+      gap: 0 2.5rem;
+      align-items: start;
+    }
+  }
+
+  /* ============================================================
+     UPDATE STREAM
+  ============================================================ */
+  .updates-stream {
+    padding-top: 1.5rem;
+  }
+
+  .stream-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--forest);
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .stream-label {
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .update-count {
+    background: var(--forest);
+    color: var(--accent);
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    letter-spacing: 0.05em;
+  }
+
+  .refresh-info {
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .refresh-dot {
+    width: 5px;
+    height: 5px;
+    background: #4CAF50;
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  /* NEW UPDATE NOTIFICATION BAR */
+  .new-update-bar {
+    background: var(--forest);
+    color: var(--white);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-left: 4px solid var(--accent);
+    transition: background 0.2s;
+    animation: slideDown 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .new-update-bar:hover { background: var(--forest-mid); }
+
+  .new-update-bar .arrow { font-size: 1rem; }
+
+  @keyframes slideDown {
+    from { transform: translateY(-12px); opacity: 0; }
+    to   { transform: translateY(0);     opacity: 1; }
+  }
+
+  /* INDIVIDUAL UPDATE */
+  .update-item {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 0 1rem;
+    margin-bottom: 0;
+    position: relative;
+  }
+
+  .update-item.is-new {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Timeline column */
+  .update-timeline {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 0.25rem;
+  }
+
+  .update-time {
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-align: center;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+
+  .timeline-line {
+    width: 1px;
+    flex: 1;
+    background: var(--rule);
+    margin-top: 0.5rem;
+    min-height: 20px;
+  }
+
+  .timeline-dot {
+    width: 10px;
+    height: 10px;
+    background: var(--forest);
+    border-radius: 50%;
+    margin-top: 0.45rem;
+    flex-shrink: 0;
+    border: 2px solid var(--cream);
+    box-shadow: 0 0 0 1px var(--forest);
+  }
+
+  /* Content column */
+  .update-content {
+    padding: 0 0 2rem 0;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 0;
+  }
+
+  .update-item:last-child .update-content {
+    border-bottom: none;
+  }
+
+  /* BREAKING variant */
+  .update-item.is-breaking .update-content {
+    border-left: 3px solid var(--accent-warm);
+    padding-left: 1rem;
+    background: linear-gradient(to right, rgba(245,200,66,0.04), transparent 80%);
+  }
+
+  .update-item.is-breaking .timeline-dot {
+    background: var(--accent-warm);
+    box-shadow: 0 0 0 1px var(--accent-warm);
+  }
+
+  /* KEY MOMENT variant */
+  .update-item.is-key .update-content {
+    border-left: 3px solid var(--accent);
+    padding-left: 1rem;
+    background: linear-gradient(to right, rgba(200,245,90,0.05), transparent 80%);
+  }
+
+  .update-item.is-key .timeline-dot {
+    background: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  .update-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-family: var(--font-ui);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.55rem;
+    border-radius: 2px;
+    margin-bottom: 0.4rem;
+  }
+
+  .badge-breaking {
+    background: var(--accent-warm);
+    color: var(--forest);
+  }
+
+  .badge-key {
+    background: var(--forest);
+    color: var(--accent);
+  }
+
+  .badge-new {
+    background: var(--red);
+    color: var(--white);
+  }
+
+  .update-headline {
+    font-family: var(--font-display);
+    font-size: clamp(1.1rem, 2.5vw, 1.35rem);
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    margin-bottom: 0.6rem;
+  }
+
+  .update-body {
+    font-family: var(--font-body);
+    font-size: clamp(0.9rem, 1.8vw, 1rem);
+    line-height: 1.7;
+    color: #2A2A25;
+    margin-bottom: 0.75rem;
+  }
+
+  .update-body p + p { margin-top: 0.75rem; }
+
+  .update-body strong { font-weight: 600; color: var(--ink); }
+
+  .update-body a { color: var(--forest); text-decoration: underline; }
+
+  .update-media {
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin: 0.75rem 0;
+    border: 1px solid var(--rule);
+  }
+
+  .update-media img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .update-media-caption {
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    color: var(--muted);
+    padding: 0.5rem 0.75rem;
+    background: var(--cream-dark);
+    border-top: 1px solid var(--rule);
+    line-height: 1.4;
+  }
+
+  .update-footer {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 0.6rem;
+  }
+
+  .update-author {
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--forest);
+  }
+
+  .update-author-title {
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .update-share {
+    margin-left: auto;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .share-btn {
+    background: none;
+    border: 1px solid var(--rule);
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .share-btn:hover {
+    border-color: var(--forest);
+    color: var(--forest);
+  }
+
+  /* ============================================================
+     SIDEBAR
+  ============================================================ */
+  .blog-sidebar {
+    padding-top: 1.5rem;
+    display: none;
+  }
+
+  @media (min-width: 1024px) {
+    .blog-sidebar {
+      display: block;
+      position: sticky;
+      top: 72px;
+    }
+  }
+
+  .sidebar-card {
+    background: var(--white);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    margin-bottom: 1.25rem;
+    overflow: hidden;
+  }
+
+  .sidebar-card-header {
+    background: var(--forest);
+    color: var(--white);
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.6rem 1rem;
+  }
+
+  .sidebar-card-body {
+    padding: 1rem;
+  }
+
+  .key-moment-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  .key-moment-item {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    gap: 0 0.75rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--cream-dark);
+    cursor: pointer;
+    transition: background 0.15s;
+    border-radius: var(--radius);
+    padding: 0.5rem;
+    margin: 0 -0.5rem;
+  }
+
+  .key-moment-item:hover { background: var(--cream); }
+  .key-moment-item:last-child { border-bottom: none; }
+
+  .key-moment-time {
+    font-family: var(--font-ui);
+    font-size: 0.65rem;
+    color: var(--muted);
+    font-weight: 600;
+    padding-top: 0.15rem;
+  }
+
+  .key-moment-text {
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    line-height: 1.4;
+    color: var(--ink);
+  }
+
+  .authors-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .author-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .author-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--forest);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .author-info {}
+
+  .author-name {
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.2;
+  }
+
+  .author-role {
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+
+  /* ============================================================
+     ADMIN PANEL MODAL (Reporter View)
+  ============================================================ */
+  .admin-toggle {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    background: var(--forest);
+    color: var(--accent);
+    border: none;
+    border-radius: 50px;
+    padding: 0.75rem 1.25rem;
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(7,32,27,0.35);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    letter-spacing: 0.04em;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 2px solid var(--accent);
+  }
+
+  .admin-toggle:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(7,32,27,0.45);
+  }
+
+  .admin-panel {
+    position: fixed;
+    bottom: 5rem;
+    right: 1.5rem;
+    width: min(440px, calc(100vw - 2rem));
+    background: var(--white);
+    border-radius: 8px;
+    box-shadow: 0 8px 40px rgba(7,32,27,0.2), 0 0 0 1px rgba(7,32,27,0.08);
+    z-index: 199;
+    overflow: hidden;
+    transform-origin: bottom right;
+    transform: scale(0.9) translateY(8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s;
+  }
+
+  .admin-panel.is-open {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .admin-panel-header {
+    background: var(--forest);
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .admin-panel-title {
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--white);
+  }
+
+  .admin-panel-title span { color: var(--accent); }
+
+  .admin-close {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.6);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0.25rem;
+  }
+
+  .admin-panel-body {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .field-label {
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .field-input,
+  .field-textarea {
+    background: var(--cream);
+    border: 1.5px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 0.6rem 0.8rem;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--ink);
+    width: 100%;
+    transition: border-color 0.15s;
+    outline: none;
+    resize: vertical;
+  }
+
+  .field-input:focus,
+  .field-textarea:focus {
+    border-color: var(--forest);
+  }
+
+  .field-textarea { min-height: 90px; }
+
+  .toggle-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .toggle-option {
+    flex: 1;
+    text-align: center;
+    padding: 0.5rem;
+    border: 1.5px solid var(--rule);
+    border-radius: var(--radius);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .toggle-option.active-normal {
+    border-color: var(--forest);
+    background: var(--forest);
+    color: var(--white);
+  }
+
+  .toggle-option.active-breaking {
+    border-color: var(--accent-warm);
+    background: var(--accent-warm);
+    color: var(--forest);
+  }
+
+  .toggle-option.active-key {
+    border-color: var(--accent);
+    background: var(--forest);
+    color: var(--accent);
+  }
+
+  .submit-btn {
+    background: var(--forest);
+    color: var(--accent);
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.15s;
+    border: 2px solid transparent;
+  }
+
+  .submit-btn:hover {
+    background: var(--forest-mid);
+    border-color: var(--accent);
+  }
+
+  .submit-btn:active {
+    transform: scale(0.98);
+  }
+
+  /* ============================================================
+     FOOTER STRIP
+  ============================================================ */
+  .blog-footer {
+    background: var(--forest);
+    color: rgba(255,255,255,0.45);
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    text-align: center;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    border-top: 3px solid var(--accent);
+  }
+
+  /* ============================================================
+     MOBILE TWEAKS
+  ============================================================ */
+  @media (max-width: 600px) {
+    .update-item {
+      grid-template-columns: 44px 1fr;
+      gap: 0 0.6rem;
+    }
+    .masthead-meta { display: none; }
+    .update-share { display: none; }
+  }
+
+  /* ============================================================
+     DEMO: LOADING SKELETON
+  ============================================================ */
+  @keyframes shimmer {
+    0%   { background-position: -600px 0; }
+    100% { background-position: 600px 0; }
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg, var(--cream-dark) 25%, var(--cream) 50%, var(--cream-dark) 75%);
+    background-size: 600px 100%;
+    animation: shimmer 1.5s infinite linear;
+    border-radius: 3px;
+  }
+
+  /* ============================================================
+     ACCESSIBILITY
+  ============================================================ */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     MASTHEAD
+============================================================ -->
+<header class="masthead">
+  <div class="masthead-inner">
+    <a href="#" class="masthead-logo"><img src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCADbAyEDASIAAhEBAxEB/8QAHQABAAMBAQADAQAAAAAAAAAAAAcICQYFAQMEAv/EAGEQAAEDAgMDBgMPDgkKBgMAAAEAAgMEBQYHEQgSIQkTMUFRYRQicRcYMjc4Qld0dYGRlbKz0RUjNVJiZ3J2kqGipbTkFjNDR1SChZSxJDZWg5PBxNLT1GNzhKPC8DRTw//EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCmSIiAiIgIiICL+o2PkkbHG1z3uIDWtGpJPUFYHKPZPzDxlHDcb+GYTtMmjg6sjLqp7e1sA0I/rlvkKCvi7LAeVmYeOnMOFsJXO4QvOgqea5un/wBq/Rn51oJlls25VYHbFOyxNvlxYATWXbSc7w62xkc23j0EN1HaV3uYGN8J5e4edeMU3antlGwbsTTxfKQPQRsHFx7gOHSdBxQU0wdsU41r2slxRie0WRjuJipo3Vcre4jxGg+RxUl02yVk3hSg+qOM8VXKWFh+uS1tfDRU3+AI/LUYZvbYuK71NNQZfUbcPW4+K2sqGNlrJB2gHVkfkAcesOCrZiG+3rENxfcr9dq661j/AEU9ZUOlee7VxJ07kFzqyt2K8IHmoqO2XWeMjxYo6uv3tOvecTGfJr72i8+TPbZYt2jKHKFtS6Mb0cjcN0PotSR4z373T16HT8ypgiC5vnkdnep1hrsmiYHeiH1EoJNeseKXAHj3r7os3dka87rK7LaC2Bw0Jdh2CPd4/wDgOJ7+HV8CpYiC8lLhDY0xt4lputstdRJwafqnUUT9ewMqCG69wavpxJsUYXr4BVYOx1cKaN434xWwx1THg9Gj49zQd+h99UhXS4Ix9jTBNUKjCmJrnaTvBzo4JzzTz93GdWP/AKwKCVMc7J+buHA+ahttFiOlbqd+2VALwOrWOQNcT3NDlCt8s13sVe+gvdrrrZVsOjoKuB0Ug8rXAFW0yk2z6yJ8NvzLszamLg36p21m7IO98JO67vLS3o4NKtVbK3AOaeFWVlKbLiqyynolhZOxrtOIcx41Y7Q9BAIQZJItIcX7J2Tt/e+WltVwsEzuJdbKstaT+BIHtA7mgKPavYesLpiaTH9yii6my29kjh74e3/BBTnBGHLhi7F9pwxa2F1Zc6plNH4pIbvHQuOnrWjVxPUAVI+0jkdVZMfUHwnEUN5+rHhG7zdKYea5nmtddXO1153u6FdfIbZ8wblNUyXWjlqLxfZIzGbhVtAMTT6JsTBwYD1nUu6tdCQoU5TT+b7+0v8AhUFM0REBERAREQEREBERARerhXDt9xTeobNh21Vd0uE3oIKaMudp1k9jR1k6Adatvk9sZfxNzzPuvY76k26T80k3+IYPI5BUCy2m6Xu4x26zW2suVbKdI6elgdLI7yNaCSp0wBskZrYkbHUXenocMUjuOtfLvTEd0UepB7nFqvxgnBeFMFWwW3ClgoLRT6AOFPEA+TToL3nxnnvcSVzedecWDcqLQ2pxDVumuE7SaS20+jp5z26dDWa9LnaDs1PBBDmEtinA9E1j8S4mvV4mA4tpmspYifJ47v0gv2X7DmyJlk91PeKewSVsbiH08k81xnDh1OjDn7nkIAVZM49o3MbMaWalNxfYbI/UNttukLA5vZLJwdJ3g6N+5ChxBdGv2hdmy1b8FjyihqwPXssNFBG8jo4k73vlq/KNqPJmcxRVeTERgjGjf8jpH7g+5BaB1DrCpwiC71tzg2TMUO5q9YCoLK+TTelq8OxN46aejp953vnT3l19FkNs2Zj0L63CTaVw01fLZrs8uj16nRuc4MPcWhZ5L9tlutzslyhudnuNXbq2E70VRSzOjkYe5zSCEFw8Z7EMBa+XBuN5GEA7tPdqcO18ssemn5BUCZibPebGB2yT3HC89fQsBJrLYfCYgB0khvjsHe5oCl/IrbAu9slp7LmfE66UGoY2708YFTCO2Vg4SNHDi0B3Anxyrq4dvVpxFZaW9WO4U9xt1WzfgqIHhzHjy9oOoI6QQQeIQY7kEHQjQhfC1MzVyLy2zHimkvVhipblIOFzoAIKkHtJA0f/AFw5U5zq2U8c4JE90wzvYqsjNXE08elXC37uIa7wHawntIaEFeUXy4Fri1wIIOhB6l8ICIiAiIgIiIJ22cdn+35wYbrLkcwaWx19NWvp/qd4C2oldGI43CbTnmENJe5vodPEPHqErecY++j+oP3hU3pp56aojqKaaSGaNwcySNxa5pHQQRxBVv8AY72jL3U4locvcfXGS4w1zhBa7lUOLpmTHg2GR3S8OPAOOrg4gEkHgH6fOMffR/UH7wnnGPvo/qD94VzEQUz84x99H9QfvCecY++j+oP3hXMRBTPzjH30f1B+8J5xj76P6g/eFcxEFM/OMffR/UH7wo12gdnK3ZTYON7kzHpbrXGeOOO2ut7aeWRrjxePrziQPwV3m1vtK31mJa/AmXtxdbqSheYLhdKd2k00o4Pjid6xrTwLh4xIOhAHjVGrKmprKqSqq6iWoqJXF0ksry573HpJJ4koPqREQEREBERAREQEREBERBJOz5llb81MW1WH67GFLhl8dLz0Ek0DZTUP32t5trTIzU6OJ4E9HQrB+cY++j+oP3hUzU4bPO0Ri3Li90dBd7jVXjCj3tjqaOoeZH0zNdC+Ani0t6dz0LuI0BIcAlzzjH30f1B+8J5xj76P6g/eFcagq6avoYK6jmZPTVETZYZWHVr2OGrXA9hBBX3IKZ+cY++j+oP3hPOMffR/UH7wrmIgpn5xj76P6g/eF/Muw5HFG6SXNVsbGjVznWHQD3/CVc5RntUep5xr7mu+U1BXPzl1q9mSi+J2/wDcp5y61ezJRfE7f+5VP0QXA85davZkovidv/cp5y61ezJRfE7f+5VP0QXA85davZkovidv/cp5y61ezJRfE7f+5VP0QXCi2KrdLI2OLOClke46Na2zNJPveEr9XnGPvo/qD94VM1+ijrq2idvUdZUUx1B1ikLOI6DwKC4nnGPvo/qD94TzjH30f1B+8Kr9pzLzFtOn1Nx3ialaPWR3SYN6+lu9oekqQsL7VGc9je0S4ip7zC0/xNxo43g+VzA1/wCkgl7zjH30f1B+8J5xj76P6g/eF7GWu2nYK+SKjx7h2azvOgdXUDjPBr1l0Z8do8heVaLDV+suJbNBecP3SkudvnGsdRTSh7D2jUdBHQQeI60FRfOMffR/UH7wq6Z95W3XKTHJw1ca2K4RS07aqkrI4ywTREubqWkndcHNcCNT1ceK1XVNeUttQ5vBV8YOINXSSn/ZvZ/g9BTFERAREQEREBSTknktjXNe5blio/BrVG/dqbpUgtp4u0A9L36EeK3tGug4qVNl3ZirMbMpsXY8jnoMNu0kpaIEsmrxr0k9LIj29Lh0aDRyvfZbXbbJaqa02ihp6CgpWCOCngjDGRtHUAOhBGWSeQOAsroY6qhovqrfQPHutawOlB6+bb0RDp9Dx04FxUsouTzbx5Z8t8B3DFl5drFTM3YIA7R1TMfQRN7yevqAJ6AUHM7RGdFgyhw2J6oMr77VtP1PtrX6Ok6ucefWxjt6zwHWRm/mRjvE+YWJZb/iq5yVtW/hGzoigZ1MjZ0NaOwdPSdSSV/GY+M77j/GFdijENU6etq36hup3IWD0MbB1NaOAHlJ4klc4gIiICIiAiIgIiIC6rLHMLFmXGIo75hS6SUcwIE0J8aGoZ9pIzocPzjpBB4rlUQagbO+eGHM3bIRAG23EFKweG2yR4JH/iRH18Z7elp4HqJlhY+YSxDeMKYjocQ2CukoblQyiSCZnSD0EEHgQQSCDwIJBWm+zpm1a828Cx3aER013pN2G60TXfxMunBzdeO4/Qlp8o1JaUEmKmfKafzff2l/wquYqZ8pp/N9/aX/AAqCmaIiAiIgIiICIiApy2eNnHFGaL4bzcXSWPC29qa17NZakA8WwtPT2b58UfdEaKTNlXZeNyZS41zNoXspDpJQWWZujphwIknHU3sjPE+u0HB114YooIWQwxsiijaGsYxoDWtA0AAHQEHLZZZdYQy4sTbRhO0Q0UZA5+cjenqHD10kh4uPE8Oga8ABwXWIuTzcx3aMt8BXHFl5O9FSs3YYGuAdUTO4Mjb3k9fUAT1IOJ2nM8LXlFhxsNO2KuxPXxu+p9ETq2MdHPS6cQwHoHS4ggdDiM3cVYgvWKb/AFd+xBcai43KrfvzTzO1cT1AdQaBwDRoAAAAAv1Y/wAW3vHGLrhijEFUaivrpS95Gu7G3oaxg6mtGgA7AvBQEREBERAREQFK2ztnZiDKPETXQulrsO1UgNwthdwd0DnI9eDZAB09DgND1ERSiDYDBmJbLjDDFDiPD9aysttdEJIZG9Pe1w9a4HUEHiCCF7Czk2N86JMt8ZNw9fKojCt5ma2cvd4tHOeDZxrwDehr+7Q+tAOjYII1B1BQQln3s44MzNinudHHHYMSkEivpohuTu7J2DQP/CGjh2kDRUAzRy7xZltiJ1jxXbHUsx1ME7fGgqWA+jjf0OHR2Ea8QDwWti5vMbA+GcwcMT4exTbY62jl8Zh6JIH6cJI3dLXDtHTxB1BIIZFopX2ickcQ5RX0c/vXDD1XIRQXJrdA7r5uQeskA6uhwBI6wIoQEREBERAX3UNVUUNbBW0kroainkbLFI3pY9p1BHeCAvpRBsBge9sxLguyYiiADLpb4KwAdXORtfp+dewoo2Q691y2cMG1DnFxZSSU+p16IppIx09zFK6AiIgLmM2MRnCGWWJMTMIEtuts08OvQZQw82PfduhdOoP25rg+h2b77EwkGtnpafUdQ59jz8IYR76DNqaSSaV8ssjpJHuLnvcdS4niST1lfwiICIiAiIgIiICIiAiIgIiICIiDSnYfxJJiLZ6s8c8vOz2iaa2vcTqQGEOjHvRyRjyAKb1Uzk1rgZMFYutevCnuMNQB/wCZGW//AMlbNAREQFGe1R6nnGvua75TVJijPao9TzjX3Nd8pqDLNERAREQEREBERAREQF3+SWbGKMqcTsutiqHS0UrgK63SvPMVTO8dTh1OHEd4JB4BEGueWWNrFmFgyhxVh6cyUdU3xmP0EkMg9FG8DocD/uI1BBUL8oXavD8iYK9rfGtt4gmJ7GubJGR8L2/Aq87DuaUmCcy2YXudUW2HET2wOD3eLBVdEUg7N4+Ifwmk+hVwtrG0i87O2M6Xc3jFQeFjh0cw9suvwMQZcIiICIiArb7HOzmy+No8xMe0Wts1EtqtkzP/AMrTomlB/k+trfX9J8XQO43Y1yQ80fEpxNiOlccKWmUbzHDhXVA0Ih72AaF/lDfXEjRKNjI2Njja1jGgBrWjQADqCD5AAGgGgCIiAs6tuHNF2OMzH4atlUJLFh17oI9w+LNU9EsnfoRuD8EkeiV0NpDHZy6ydvmIoJAy4GLwW38ePhEviscO3d4v07GFZXSPfJI6SRznvcSXOcdSSesoP5REQEREBERAREQEREBERAUg7P8AmXX5WZkUOI6cySUDz4Pc6Zv8vTOI3gB9sNA5ve0dRKj5EGx9qr6O62yluduqI6mjq4WT08zDq2SNwDmuHcQQVTzlNP5vv7S/4VdZye+YL79l/XYHuE5fWYfeH0m8eLqWQkgd+4/eHcHMC5PlNP5vv7S/4VBTNERAREQEREBXK2L9nlsrKPMrHdAHMO7NZbdM3p6xUSNPvFgP4X2q4DYuyRbmDiT+FuJKTfwvaZgGxSN8WuqBoRHp1sbqC7qPBvHU6aGNAa0NaAABoAOpB8oiICzy268z3YxzKOEbbUb1lw290Lt13izVfRK4/g/xY7CHkeiV0s/ccsy6ymvuKQ9oq4IOaoWu08aokO5Hw69Cd4jsaVlLPLJPM+aZ7pJJHFz3uOpcSdSSe1B/CIiAiIgIiICIiAiIgLRbYczPkxzlibBdannb1hzcpnucdXTUxH1mQ9pGhYfwQTxcs6VKGy7j52Xec1lu8s5ittVJ4Dchro0wSkAuPcx26/8AqINSEREHk4vw5ZcW4crMPYhoIq+21ke5NDIOnsIPSHA6EEcQQCFmntJZNXbKLF/gxMtZh+tc51rr3AavaNNY36cBI3Xj1EaEaakDUJczmhgexZiYLrsLYgg5ylqW6skAG/Tyj0MrCehzdffGoPAkIMjUXUZp4HveXWN7hhS/RbtTSv1jlaCGVER9BKzta4fAdQeIK5dAREQEREGkOwfUCbZxtMY3v8nrKuM698zncO7xv8VO6rxyfM75cgObcGgQ3ipY3TrG7G7j77irDoCIiAq2corOYsi7dGGgibEFOwns+sVDv/irJqrXKRE+ZXh0a8Pq4PmJUFDEREBERAREQEREBERAREQEREBERBcXkzp3NuGO6YAbskVC8nr1aZwPlFXTVG+TWJ/hti5up0NthJH+sKvIgIiICjPao9TzjX3Nd8pqkxRntUep5xr7mu+U1BlmiIgIiICIiAiIgIiICIiD+o3vjkbJG5zHtILXNOhBHWFp1k/ilucmzeJqhzZq+utc9puTTodagRmN5PUN8Fr9Ox4WYamTZzz6u+TlPd6Ons0V5ork+OXmJakxCGRoILgQ067wIB/BCCHuZl//AFP/ACSilfzWrH/oDD/fh/0kQRKumyuwZdcwcd2vCVnb/lFdMGvlLdWwRji+R3c1oJ7+jpK5lXy5PnLYWPBdXmFcqfdr75rDQ7zeMdIx3Fw7N9418jGnrQWLwHha0YKwhbcL2KDmaC3wCKMHTeeelz3drnElxPaSvbREBERBSXlIcYOnvmHMC08v1ulhdcqpo6C95McWveGtkPkeFUFSVtQYkOKs+8XXNr9+GOvdRwnq3IAIQR3Hc199RqgIiICIiAiIgIiICIiAiIgIiIJZ2R8Xuwbn1h2rfNzdHcZfqZV8dAWTaNbr3CTm3f1VOfKafzff2l/wqprG98cjZI3OY9pBa5p0II6wv13O7XW6c39U7nW13Na834RO6Tc10103idNdB8AQfiREQEREBdVlPgi6Zi4+teErSN2Wsl+uzEatgiHF8h7mt1OnWdB1rlVf7YDy0bhvL+XHdypt264gGlMXDxo6Np8X8tw3u8BiCwWCsNWnB+FbdhmxUwp7fb4BDCzrOnS5x63OOpJ6ySV7CIgIiIKXcpFjEuq8NYDp5TuxsddKxoPAkkxw694AlP8AWCpwpO2psTHFefmLLi2TfggrTQwaHhuQARajuJYXf1lGKAiIgIiICIiAiIgIiICIiDUzZexi7HGR2G7xPJv1sVP4FWEnjzsJ5suPe4Br/wCspMVOeTYxO51HivBsz/FjfFc6Zv4Q5uU/owq4yAiIggbbMyhbmNl+69WimDsTWKN01NuN8apg6ZIO8+ub0+MNBpvFZwLZhZubamWTcv8ANeS426AR2TEO/W0jWt0bFLqOeiHcHODgBwAkA6kEFIiICIiDQzk8yDkLUaHovlRr/s4lYxVm5OL0kLz+Mk/7NTKzKAiIgKpvKUf5j4S90pvmlbJVN5Sj/MfCXulN80goyiIgIiICIiAiIgIiICIiAiIgIiILU8m3LIMzMSwB31t9mD3DTpImYB8o/Cr3qhvJuemniP3EPz8SvkgIiICjPao9TzjX3Nd8pqkxRntUep5xr7mu+U1BlmiIgIiICIiAiIgIiICIiAiIgIiIPey9wzWYyxxZsLUGonudZHTh+mvNtcfGeR2Nbq49wK1usVrorJZKGzW2FsFFQ07KanjHQyNjQ1o+ABUS5OvCgumaV1xVNHvQ2Og3IiR6GecloI/1bZR76vygIiIC83FV1jsWF7tfJt3m7dRTVb97o0jYXnX4F6SjHasuhtGzvjSrDt3nLcaXXXT+Pe2HT3+c0QZc1E0tRUSVE7y+WV5e9x6XOJ1JX1oiAiIgIiICIiAiIgIiICIiAiIgIiICIiAiIg67JzBs+P8AM2w4Sh3wyvqmtqHs6Y4G+NK4d4Y1xHfotZKCkpqChgoaOFkFNTxNihiYNGsY0aNaB2AABUu5N3B4muuJMd1EYLaeNtspHHj4ztJJT3EARDyPKuugIiIC8vF13jw/hS736bdMdtoZ6t+90aRxuedfgXqKKNry7GzbOWMKhrt181KykaOs89KyMj8l594FBmFUzy1NTLUzyOkmleXyPd0ucTqSffX1oiAiIgIiICIiAiIgIiICIiCc9he/Gy7RNopy/ciu1NUUEh16dWc40e++JgWkqyRyfuxsOa2E7xv7jaS8UsshJGm4JW7w49rdQtbkBERAUObYeAW47yTuraeDnLpZwblQkDVxMYPOMHWd6PeGnWQ3sUxr4cA5pa4AgjQg9aDGhF2+fGEBgXN7EuGI4jHTUta51I3sp5NJIuPXoxzR5QVxCAiIgv8A8nF6SF5/GSf9mplZlVm5OL0kLz+Mk/7NTKzKAiIgKpvKUf5j4S90pvmlbJVG5Syctwtg2m3eElbUyb2vRusYNP0vzIKQIiICIiAiIgIiICIiAiIgIiICIiC03JuemniP3EPz8SvkqG8m56aeI/cQ/PxK+SAiIgKM9qj1PONfc13ymqTFGe1R6nnGvua75TUGWaIiAiIgIiICIiAiIgIi6nLHAGKMyMQyWHCVCytr4qZ1U9j5mxhsbXNaXFziB0vaPfQcsi/fiG011gv9xsVzjbFXW6qlpKljXBwbLG8seARwOhB4hfgQEREGg3J5WAW3JOqvL2jnbxdJZGu7Y4w2No95zZPhVklGmy1a22jZ6wVSNbuiS2MqtNNOM5MxPv8AOaqS0BERAUB7e1aaTZ2uEG9p4ZcKWDTjx0k5zT/29ePYp8VaOUZqDFkhaYWyNaZsQwBzeGrminqD/iG//Sgz+REQEREBERAREQEREBERAREQEREBERAREQERf3DG+WVkUbS573BrWjrJ6Ag002NcNtw1s84bY6PdqLkx9ynOmm8ZnEsP+zEY95TCvPwxa4rHhu12WDTmrfRxUrNPtY2Bo/MF6CAiIgKunKF15o8hIaYOI8OvVPAQOsBksn+MYVi1U/lJ6rcwFhSi3m/XbpJLp1nciI1Hd4/5wgouiIgIiICIiAiIgIiICIiAiIg/qN745GyRucx7SC1zToQR1hbFWStFxstDcAABVU8c3AaeiaHf71jmtackqoVuTWCqrVhMuH6Fztw6gO8HZqPeOoQdeiIgIiIKJ8pBhsUWYGHcUxRhrLpb30spA6ZIH67x7y2Vo8je5VTV/uUXtDazJy1XZrNZbdeYwXdkckcjXfpCNUBQEREF/wDk4vSQvP4yT/s1MrMqs3Jxekhefxkn/ZqZWZQEREBVA5S77B4I9s1nyYlb9VA5S77B4I9s1nyYkFJkREBERAREQEREBERAREQEREBERBabk3PTTxH7iH5+JXyVDeTc9NPEfuIfn4lfJAREQFGe1R6nnGvua75TVJijPao9TzjX3Nd8pqDLNERAREQEREBERAREQFdfk28KuitOKMazxEeESx22lcRpwYOcl07QS6L32lVGwDhK+44xXRYaw7RPq6+reGtAB3Y2+ukefWsaOJK1RymwVbsvMvbRhG2nfioIdJJSNDNK4l0kh8riTp1DQdSDMPPb078efjJcf2mRcYuzz29O/Hn4yXH9pkXGICIiDXXK6lFDlnhaiAaBT2akiAb0eLCwcO7gujXjYE/zIsPubT/NNXsoCIiAqtcpF6VeHPdsfMSq0qq1ykXpV4c92x8xKgoYiIgIiICIiAiIgIiICIpp2cc57DlhSXC337AlLiOnrp2ymd72c7Bo3TRrXsIcD5WoIWRaWZQZoZIZnTMobLbbVRXdwJ+ptwt0UU7tOnc0Ba/rPiuJ04kBSn/BPC3+jVm/uMX/ACoMgEWv/wDBPC3+jVm/uMX/ACp/BPC3+jVm/uMX/KgyARa//wAE8Lf6NWb+4xf8qfwTwt/o1Zv7jF/yoMgEWle1rh3D9Hs74uqaOxWunnjpoiyWKkjY5v1+McCBqFmogLpcq6IXLM/CluLN8VV6o4d3UDXenY3Tjw61zS7PIn078B/jJbv2mNBrKiIgIiICp1ymM4bQYDpt3jJLXyb2vRuinGn6X5lcVUz5TT+b7+0v+FQUzREQEREBERAREQEREBERAREQFqnsyzioyAwRI1paBaIWaH7kbv8AuWVi1M2V/U84K9zW/KcgkxERAREQQxttUQrNmrFBDd59OaWdnHo0qYgT+SXLM5af7YPqbcY+1ovn41mAgIiIL/8AJxekhefxkn/ZqZWZVZuTi9JC8/jJP+zUysygIiICqByl32DwR7ZrPkxK36qByl32DwR7ZrPkxIKTIiICIiAiIgIiICIiAiIgIiICIiC03JuemniP3EPz8SvkqG8m56aeI/cQ/PxK+SAiIgLgdoiz3O/5JYrs1mo5a24VdA6OCCMaukdvDgF3y4vPPEdzwhlHiTEtmdEy4W+iM0BlZvtDgQOI6+lBnR5gOcvse3n8hv0p5gOcvse3n8hv0rs/Pe5yf02y/FzfpTz3ucn9Nsvxc36UHGeYDnL7Ht5/Ib9KeYDnL7Ht5/Ib9K7Pz3ucn9Nsvxc36U897nJ/TbL8XN+lBxnmA5y+x7efyG/SnmA5y+x7efyG/Suz897nJ/TbL8XN+lPPe5yf02y/FzfpQcZ5gOcvse3n8hv0r5bkBnK5waMvbzqTpxa0f/Jdl573OT+m2X4ub9K+WbX2cjXhxq7I4A6lptw0PdwKDyLTstZ3V7xv4Rjooz/KVNxp2j4A8u/MpRwPsS3uaeObGuL6GjgB1fT2uN00jh2c5IGhp791y8G07amZVO8C44fwxWx9e5DNE8+/zhH5lKOB9tXCFwnjp8W4ZuViLjoaimlFXE3vcNGvA8gcUE7ZVZXYKyytTqDCVoZTPlA8Iq5TzlRUEfbvPHT7kaNHUAu0Xj4PxTh3GFmjvOGLzR3agedBLTyB26endcOlruI8UgEdi9hBk1nt6d+PPxkuP7TIuMXZ57enfjz8ZLj+0yLjEBERBrnlTVivyuwnXBwcKmyUc28BprvQMOunV0rpVF+yjdBd9nbBdUHa83b/AAU/6l7ov/gpQQEREBVg5SCDeyesNTv6c3iCOPd06d6nnOuv9X86s+q6coVTc/kHFLuB3g16ppdSfQ6slZr+np76DPJERAREQEREBERAREQEREH3UNVU0NbDW0VRLTVMEjZIZonlr43tOoc0jiCDx1C1G2ZMwpMzMn7ViGscx10iLqO47o0HPx6au06t5pY/Tq39FlmrncmnenmLGeHZHnca6mrYWdQJ32SH80fwILlIiICIiCJtsH1NuMfa0Xz8azAWn+2D6m3GPtaL5+NZgIC6zJmobR5wYLq3jVsGIKCQjXTg2oYen3lya/Ta6yS33Olr4f4ymmZMzytcCP8ABBsei+qiqYayjgq6d4fDPG2SNw62uGoPwFfagIiICptymcTzDgCYN+ttdcWuPYSKYgfmPwK5KqNylkBdhbBtTvcI62pj3dOneYw6/o/nQUgREQEREBERAREQEREBERAREQFqfsvRSQ7PmCWSN3XG1RvA114O1I/MQssFq/s+weD5FYFj397XD9FJrpp6KFjtPe10QdyiIgIiIIg2zahlNs04ve8a78VNGBr1uqom/wC/X3lmMtEOUGuooMgxRbwDrldqen3eGpDQ+Un4Yx8IWd6AiIgv/wAnF6SF5/GSf9mplZlVm5OL0kLz+Mk/7NTKzKAiIgKoHKXfYPBHtms+TErfqoHKXfYPBHtms+TEgpMiIgIiICIiAiIgIiICIiAiIgIiILTcm56aeI/cQ/PxK+Sobybnpp4j9xD8/Er5ICIiAoz2qPU8419zXfKapMUZ7VHqeca+5rvlNQZZoiICIiAiIgIiICIiDtMnsysSZYYugv8Ah+qeGBzRWUbnkRVcWvFjx5NdHaatPELUnAeJ7XjPB1rxTZZDJQ3KnbNFr6JvU5jvumuBae8FZBK8fJwYtfWYUxFguplJNtqWVtKHH+TlBa9o7g5gPlkQVPz29O/Hn4yXH9pkXGLs89vTvx5+Mlx/aZFxiAiIg0B5O6/tuOTdwsb36zWi6vDW69EUrWvafffzvwKy6oDyd2Khac2rjhmaUMhv1AebaT6OeAl7f0HTK/yAiIgKFdt6h8N2a8SPDQ59K+lnaNAeipjaT3eK53/0qalwe0PbPqvkXjWhDd5xstTKwdro4zI0fC0IMo0REBERAREQEREBERAREQFZjk5qww513akJO7U2CbQAeubPAR+beVZ1P2wNOItoeijMhaZrdVMA+28QO0/R195Bo0iIgIiIIm2wfU24x9rRfPxrMBaf7YPqbcY+1ovn41mAgIiINU9mi/jEuQ2DroX78gtkdLK7XiXwawuJ7yYyffUiqqHJxYtbW4Iv+DJ5dZrZWNrKdpPHmZho4Adgewk98itegIiICrJyjdEZsmbNWNBJpr9EHcRwa6CYa/CG/CrNqD9ua2m4bOF9ma3edQz0tSB/rmMP5nkoM10REBERAREQEREBERAREQEREBa+4Ao3W7AeH7e7XeprXTQnUgnVsTR1cOpZJ4Ytxu+JbXaWgk1tZDTgD7t4b/vWw4AA0A0AQEREBERBS7lKr+HVeD8LRv4sjnuE7dfti2OM/oyqnCl/bDxWMWbQGIZon79LbJBbKfjqAIfFfp3GTnD76iBAREQX/wCTi9JC8/jJP+zUysyqzcnF6SF5/GSf9mplZlAREQFUDlLvsHgj2zWfJiVv1UDlLvsHgj2zWfJiQUmREQEREBERAREQEREBERAREQEREFpuTc9NPEfuIfn4lfJUN5Nz008R+4h+fiV8kBERAUZ7VHqeca+5rvlNUmKM9qj1PONfc13ymoMs0REBERAREQEREBERAXaZP5mYlysxLPf8MGjNVUUjqSVlVEZI3MLmu6ARx1YNDr2ri0Qelim81eI8TXXENwEQrLpWzVtQIm7rBJK8vdugk6DVx0Gq81EQEREHvZe4lq8HY5suKaLUzWytjqQzXTnGtd4zD3Obq09xWt9luVHebNRXe3TCajrqdlRTyDofG9oc0++CFjkr+8n9mM3EWXdRgavn3rlh460+87UyUjyS3Tt3HEt7gWBBZtERAX0XGkhr7fUUNQCYaiJ0UgHW1wIP5ivvRBjleaCe1XittdU3dqKOokp5Rppo5ji0/nC/IpW2t8POw5tC4tpQzdiq6v6oRHqcJ2iVxHke5w94qKUBERAREQEREBERAREQFOewp6pKx+1qv5h6gxTPsSkjadwloenw3X+5ToNMUREBERBE22D6m3GPtaL5+NZgLT/bB9TbjH2tF8/GswEBERBL2yFjhuBc87NVVMvN266E2ytJOgDJSAxxPUGyCNxPYCtOljQCQdQdCFqHssZjNzKygtl0qJg+70I8BuYJ8YzMA0kP4bS1/ZqSOpBKiIiAuMz0szsQZNYwtEbN+Wos9TzLe2RsZcz9JrV2a+JGMkY6ORrXscCHNcNQQeooMaEXvZiWF+Fse3/DkjS0224z0rdetrHkNPkIAPvrwUBERAREQEREBERAREQEREEnbKtmdfNobBdGG73M3FtYeOmgp2mbX/21qUqC8nRh03DNi8Yikj3obRayxjvtZpnhrf0GSq/SAiIgLjs6sZw5f5XX/Fcr2CWipHeCtd0PqHeLE3TrBeW692p6l2Ko/wAojmO2vvtuy1ts+sNt0rrnunpnc361GfwWOLj/AOY3sQVKnlknmfNM90kkji573HUuJOpJPav4REBERBf/AJOL0kLz+Mk/7NTKzKrNycXpIXn8ZJ/2amVmUBERAVQOUu+weCPbNZ8mJW/VQOUu+weCPbNZ8mJBSZERAREQEREBERAREQEREBERAREQWm5Nz008R+4h+fiV8lQ3k3PTTxH7iH5+JXyQEREBRntUep5xr7mu+U1SYoz2qPU8419zXfKagyzREQEREBERAREQEREBERAREQEREBdtkhj+uyzzKteLKMOkigfzdZA06c/Tu4SM8unEdjg09S4lEGxliutvvllorzaqplVQV0DKinmZ0PjcAWn4Cv2KkewVnK23VjcrMR1YbS1UhfZJpHcI5XHV1Pr2OOrm/dajiXAK7iAiIgpRykmFDFd8MY2gi8SeF9sqXjqcwmSLXtJDpfyQqfLUnakwQ7HuSN+s9PDztwp4hXUADdXc9D4263vc3fZ/XWWyAiIgIiICIiAiIgIiICmbYl9U7hH/ANb+xTqGVM2xL6p3CP8A639inQaZIiICIiCJtsH1NuMfa0Xz8azAWn+2D6m3GPtaL5+NZgICIiApr2Ps1W5Z5nRxXSoMeHr0G0tw3neLC7X63OR9ySQfuXu7lCiINmAQRqDqCirFsNZztxXhqPL3ENUDfbRDpQyyO8arpW9A73xjQd7dDx0cVZ1AREQZ17fWFXWHPWS8RR7tNf6KKrDgPF51g5qRvl8Rrj+Gq9rQnlAcFOxDlBBiWlh36vDlVzziBqfB5dGSAeR3NOPc0rPZAREQEREBERAREQEREBEX7rBaq2+32gstthM1bX1MdNTxj10j3BrR8JCC/PJ74VNmyZqcQzRls9/r3ysJGmsEX1tg/LEp98KyK8fA+H6TCeDrPhmh401rooqVjtNC/caAXHvJBJ7yvYQERfzNJHDE+WWRscbGlz3uOgaB0knqCDkM5cfWzLXLy54suRa807NylgJ0NRO7hHGPKek9QBPUsp8RXi44gv1dfLtUOqa+vnfUVErulz3HU+QceA6gph2vc435o468BtM7v4L2d7oqEDgKl/Q+cjv00b2NHUXFQegIiICIiDQjk7YWRZEVr266zX6oe7Xt5mBv+DQrIKufJ6AjISfUdN7qNPyIlYxAREQFUDlLvsHgj2zWfJiVv1UDlLvsHgj2zWfJiQUmREQEREBERAREQEREBERARaC4bsRyi2G7s6Zng10q7NPVVTuhzamraGRg/dND4m+Vqz6QEREFpuTc9NPEfuIfn4lfJUZ5NcD+HOLHaDUWyIA/61XmQEREBRttQxSTbPmNmRt3nC1SPI104N0J/MCpJXAbR/pC459xKn5soMpkREBERAREQEREBERAREQEREBERAREQf3DJJDKyWKR0cjHBzHtOhaRxBB6itE9kLPinzJsMeGcSVUceLrfEA4uIb9UImj+NaPtwPRtH4Q4EhudK/bYrrcbHeaO8Wislo6+imbNTzxnR0b2nUEfQg2LRQRsvbQlqzSt7LJfHU9txdAzx6cO3Y61oGpkh16+BLmcSOkajondAWZG11lwcus4a+GkhLLNdybhbiB4rWvJ34h+A/UAfalp61puom2p8qo81Ms56GkjZ9XraTVWqQkDWTTxoiftXgadQ3g0noQZgIvtq6eekqpqSqhkgqIXujlikaWuY5p0LSDxBBGmi+pAREQEREBERAREQFNGxGx79pvCjmtJDBWucQOgeBzjX4SPhULqxvJ7WZ9wz1luW59atdpnmL+oPeWRgeUh7j7xQaFoiICIiCJtsH1NuMfa0Xz8azAWn+2D6m3GPtaL5+NZgICIiAiIg/fh283PD18or5ZqyWiuNFM2annjOjmPB4eUdRB4Eag8Fprs3Zx2nNzBzathjpb/AETWsulCD6Bx6JGdZjdodOw6g9Gpy7Xv5f4wxBgTFVJiXDVc6kr6V3A9LJGH0Ub2+uYesf4EAoNeUUY7P2c2HM3MNipoXso73TRg3G2Pdq+E9G837eMnocOjUA6FScg/HfbXRXuyV1muULZ6Kup301RGeh8b2lrh8BKybzWwbX5f5hXjCVx3nSW+oLI5CNOeiPjRyD8Jpae7XTqWuCq5t8ZTvxLhWLMSyUxfdLJCWXBjG6umo9dd7yxkk/gudr6EIKFIiICIiAiIgIiICIiArPcn1l26/ZhVWO6+nLrfYGFlKXDxX1cjdB5dxhce4uYVXTClhuuKMSW/D1kpXVVxuE7YKeJvW4npJ6gBqSTwABJ6Fqrk3gO3ZbZdWvCVuLZPBY96pnA0M87uMkh8p6B1AAdSDsEREBUt23c/G1LazK7BtZrECYr5WxO9Fp00zD2fbkdPoejeB9ba72lY7dFV4Cy5uIfXu3obndoHcKfqdFC4ev6QXj0PQPG4tpISSdSdSUHwiIgIiICIiDRzYIikj2dqB726NluFU9h16Rv6f4gqfFDmxZReBbNWFGuaA+ZtTO7QnjvVMpaeP3O6pjQEREBVA5S77B4I9s1nyYlb9VA5S77B4I9s1nyYkFJkREBERAREQEREBERAUr7KeXj8xs47Xb54OctNvcK+5Fw1aYoyNIz+G7dbp2EnqUUgEnQDUlaT7G2Vb8t8sGVd0p+axBfdyrrmuGjoWaHmoT2FoJJHU57h1BB43KDXs2zIYWxjyHXe609O5o62M3pjr3b0bPhCzwVxOUrve/c8HYcY4jmoaiulbr077mMYdO7ck+FU7QEREFvuTSga7EGNanmyXR0tJGH8dAHPlOnZx3R8Cu0qfcmhRllnxxX6O0mqKKHXUaeI2Y9HT/KK4KAiIgLj88IXVOS2OII2B75MO17WNOnFxp36dPeuwXkY1ovqlg2927dDvCrfUQaEka70bm6cOPX1IMfkREBERAREQEREBERAREQEREBERAREQEREH30FXVUFbDW0NTNTVUDxJDNE8sfG4HUOaRxBB61dnZu2saK5R0uF80aiOjrxpHBeyA2GbqAnA4Ru+7Hinr3dNTR9EGysMsU8LJoZGSxSNDmPY4FrmkaggjpC/tZj5G7QmOcrXRUEE4vOHw7xrXVvO6wdfNP4mM9w1bx4tJV4sns/susy4oqe33VtsvDuDrXcHCOYu/8ADOu7IPwSTp0gIId21tn+a9uqMycEUJkuLWb14oIW8ahrR/HxtHS8AeM0eiA1Hja71H1swqvbSuyvQYvnqsVZfCmtd9kJkqbedI6asd1lp6I5D+S48ToSXEKEIvUxTh6+YWvU1mxFaqu13CE+PBUxljtOojXpadODhqD1FeWgIiICIiAiIgLQfYDy+nwtlhU4quUDoa7EsjJYmvbo5tLHqIjx6N4ue7vaWFQZsq7N1zxvcKXFmNqKegwrERLDTygsluR6QADxbF2u9cODekuF9rncLRh6zPrblWUVqttJGN6WeRsMMTBwA1OgA6kH7l5+IL3Z8PWuW6X660VroYvR1FXM2KMHqGriBqeodaq/nPtjWO1Ca1Za0QvVZoWm51TXMpoz2sYdHSHvO6Oj0QVO8f47xdjy7G54tv1ZdagE82JX6RxA9IZGNGsHc0BBfXE+13k9Zqp1PSVN5vm6dC+3UI3Ne4yuj18o4LuMp87suszZ3UeGr0RcmtL3W+rjMNRujpLQeDwOvdJ069Flcv22O63Gx3ikvFprJaOvo5WzU88R0dG9p1BCDTLbB9TbjH2tF8/GswFoXmjjePMXYbuuLWtYyast0Qqo29DJ2VMbJAB2bzSR3ELPRAREQEREBERB6uEsR3vCeIKW/wCHblPbrlSP3oZ4jxHaCDwc0jgQdQRwKv8A7N+0zh/MVlNh/E7qex4qIDGNLt2nrndH1on0Lyf5MnXj4pdx0zrXyCQdQdCEGy6+JGMkY6ORrXscCHNcNQQeorPvIfavxTg1sFlxqyoxNZG6NbO6T/LaZvc53CUfcvIP3QHBXZy2zHwXmJaxX4SvtLXgNDpqfe3Z4NeqSM+M3jw100PUSgottfZEVGXGIZcT4cpHvwhcJdWhgJ+p8rv5J33BPoHf1TxALq+LY282y33m1VVqutHDW0NXEYp4JmBzJGEaEEFUJ2kNlu+YMmqMRYDhqb1hwkvkpWgvqqEdeoHGSMfbDiB6IcN4hWhERAREQEREBfLGue8MY0uc46AAaklejhqxXnEt6p7NYLZVXK4VDt2Knp4y97u08OgDpJPADpV8dl7ZlocBPp8WY3bT3LE4G/T0w0fBbz1EH18o+26G+t10DkH2bGeQ8mX1qOMcV0rW4or4t2GneNTb4T609kjvXdg8X7ZWRRQpnVtJ5f5csmoaeqbiK/M1aKCglBbG4dUsvFrPINXd3Wgl+9XS22W11F0u9fTUFDTML5qiokDI429pJ4BUb2mdqesxRHVYTy5lqKCyP1jqboQY56xvQWsHTHGe/wAZw+1GoMN5y5x43zUuXO4iuPNW+N+9T2ylJZTQ9h3dfGd907U8TpoOCjtAREQEREBERARFLWyxldXZmZoUET6R7rDbJmVV1nLTuc206iLXo3nkbunTpvHqQaIZLWR+HMo8J2SVhZNSWimZM09UvNgv/SLl1yIgIiICqByl32DwR7ZrPkxK36qByl32DwR7ZrPkxIKTIiICIiAiIgIiICLtcvcqcwsezxtwvha4VkDzoat0fNUzfLK/RvfoDr2Aq4GQ2yPY8MVFPfswqinv90jIfFb4wfA4XdrtQDKR3gN6eDuBQcDsW7PtRc6+hzLxpRmK2wET2ehlbo6peDq2d4PRGOlo9cdD6EDevCvhoDWhrQAANAB1L5QZv7eF7N22iblSh28y00VNRMP9TnSPypnKB11uct6/hHmziu9g6x1d3qZIuOukfOODBr+CAuSQERe5gTCl8xtiqhw1h6ifV3CskDGNaPFYPXPcfWtaOJPUAgvhye9kfbMiZLnLHobvdp6iN320bAyEfpRvVjF4OXeGKTBmBbLhWhO9BbKOOnD9NOccB4zyO1ztXe+veQEREBERBkPmRY3YZzBxDh57Cz6nXOopmgjTVrJHBp8hABHlXPq1G39ldXWnGvmk2ykdJabs1kdwdG3UU9S1oYC7sa9oboftgdeJGtV0BERAREQEREBERAREQEREBERAREQEREBERAXyCQdQdCF8IgmXK/aVzTwK2Kkbefq9bI+Ao7trNujsbJqJG6DgBvFo7FZbAO2bgG6sihxdarlhypOgfLG3wqmHadWASDybh8pVBEQal1tdkpnRamW2puGGMUMP8XCahvhMRPW0aiWMntGhUKY/2J7JVySVOB8VVNsJ4to7jFz8YPYJG6OaPKHHvVH11mHsyswsPANsuN8Q0MY0+tRXCURnTo1Zrun4EEm4j2Ss5rU53gdptt6Y3U79DcIxqB16S7hPk01XH12Q2cVG7dmy8vrjrp9Zg50fCwnh3rrMDbR2dL7rDQy44nmgLXaiWhppHHRvDxnRk9Xap/smbGP6m0Uk81/3pJImucfA4BqSO5iCp9Pkdm/PJzbMusRA6a6vo3MHwu0C920bMudtyc3cwTLTMPS+qraeLTp6i/e6uoKzVXmpj2Olmey+6OaxxB8Eg6dPwFX7H+0ZnPFcPAYMbzQQOiDiIqGmY7U6j0TYw786DrMJbFOOK17H4lxNZbPCfRNpmvqpR72jG/pFSXYsC7MWSMrazEuIrber5Bx1rpRVyxu+5pogQ3j0FzSR9sqa4mzBx1iZj48QYwv1zieNDFUV8j49OzcJ3fzLmEF0sy9tanYyWjy8wy+R/Fra+7HdaO9sLDqe4lw7x1KrGY2Y2NcwriK3F+IKu5OYdYoXEMhh/AjboxvlA1PWSuURAREQEREHvUuMsV0uFJ8J0+IblFYZ3F0tubUOEDySCSWa6dIB8oXgoiAiIgIiICIiAiIgL9lmutzstzhudnuFVb66B29FUU0ro5GHtDmkEL8aILOZX7Y2OLCyKixlbqbFFI3QeEAinq2jvc0Fj9O9oJ63Ky2AdpvKHFjIo3YjFirH9NPd2eD7p/8AM1Mf6SzNRBpdmfs+5VZqRPvVPDFb7jUavF1s8jAJnH1z2jVknHpOgcftlWvG+xlmJa5HyYYulpxDTgncY5/gs5HVq1+rP01Xew3++2Co8IsV6uVqm1B5yiqnwu1HewgqVMD7Q2c1Jc6Wibjyvnge/dcKqGGocR+FIxx6u1B4V4yGzitT3MqsvL7IW66+CweEjh2GIuB95eZFlHmrLI2NuWuMQXHQF1lqGj4SzQK9eWuP8XXi1OnuN25+QMiOvg0TeJbqehoXWfwovv8ATv8A2mfQgohh3ZrzpvTm81gqpooyeMldPFThveWucHfACppy92Jql0sVTj3FkTIxoXUdoYXOPcZZAAPeYfKvazyzizHw1T1j7LiLwV0bnhh8Cp36aN1HooyqwYjztzaxAxzLnj++mN3oo6aoNMx3cWxboI7kGh9itWUOSFjNNTS2DC8L2AyTVVS1tRU6fbPed+Q9Og46a8AFGGYm2Pl5ZGvgwnQ1+KKoDxXhppabXve8b595mh7VQGommqJnz1Esk0rzq573FznHvJ6V9aCX81tozM/MFstHVXcWa1SAtNBa9YWOaep79S9/DpBO73BRAiICIiAiIgIiICIiCe9mfAWSuIrHUXvNHG8VsqoK90MNqfXx0wmiDI3CRxPjkEuc3xS30PSrj4RzFyEwjZIbJhrGGDrXb4fQw09bG0a9biddXOPWSST2rL1EGrPm15R+yPhn4wj+lPNryj9kfDPxhH9KymRBqz5teUfsj4Z+MI/pTza8o/ZHwz8YR/SspkQas+bXlH7I+GfjCP6VG+eM+z5m/S2qmxLmrQUjLY+R8Jt92p2FxeGg72+x+voRppp1rO5EFwPMU2UPZmrfjyi/6CeYpsoezNW/HlF/0FT9EFwPMU2UPZmrfjyi/wCgnmKbKHszVvx5Rf8AQVP0QXA8xTZQ9mat+PKL/oL9FLk5slQtIkzYlqDrrrJfqYe94sQVN0QXnteXexvRP3psR2SvIOo8JxE/QdHUx7dejr7V3eGq/ZVw25slmrMuaeVgAbM6SGSUeR79XfnWbqINWG51ZRNaGtzFwwABoALhHw/Ovnza8o/ZHwz8YR/SspkQas+bXlH7I+GfjCP6Vy+ae0NlrYMB3avsuMbTdbsKZ7KCloqgSvfOWkM13dd1oJBJPUD16BZnIgIiIJJ2fMJ4Axdi2qpMxcWjDVqp6XnmS8/HCZ5N9o5sOeCBwJPQehXdyvvezXltb3UuEcVYSopJGhs9U64skqJ/w5HHUjXjujRo6gFmyiDVnza8o/ZHwz8YR/Snm15R+yPhn4wj+lZTIg1Z82vKP2R8M/GEf0p5teUfsj4Z+MI/pWUyINWfNryj9kfDPxhH9KebXlH7I+GfjCP6VlMiDVG4Zv5MXGhnoa/HuEqukqGGOaCatieyRpGha5pOhB7CqtZ/5e7OBwvd8SYDxxb6O8QQmWC1UdyZNDUP1HitY7VwPE8Gu0HYqpogIiICIiAiIgIiICIiAiIgIiIP/9k=" alt="GOLF" style="height:26px;width:auto;display:block;"></a>
+    <div class="live-indicator">
+      <span class="live-dot"></span>
+      Live
+    </div>
+    <span class="masthead-meta" id="clock">Loading...</span>
+  </div>
+</header>
+
+<!-- ============================================================
+     HERO
+============================================================ -->
+<div class="blog-hero">
+  <div class="blog-hero-inner">
+    <div class="blog-category">PGA Tour · Masters Week</div>
+    <h1 class="blog-title">Masters 2026: Live Updates, Round 2 Scores &amp; Highlights</h1>
+    <p class="blog-dek">Follow every shot, every story, and every leaderboard movement as Augusta National's second round unfolds in real time.</p>
+            <a href="#full-story" class="read-more-btn">
+          Read the full story →
+        </a>
+        <div class="blog-byline-row">
+      <span class="byline-authors">James Corrigan, Ryan Lavner &amp; Dylan Dethier</span>
+      <span class="byline-sep">·</span>
+      <span>Updated <span id="hero-time">9:42 AM ET</span></span>
+      <span class="byline-sep">·</span>
+      <span>Augusta, Georgia</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MAIN LAYOUT
+============================================================ -->
+<div class="blog-layout">
+
+  <!-- UPDATES STREAM -->
+  <main class="updates-stream" id="stream">
+
+    <div class="stream-controls">
+      <div class="stream-label">
+        Updates
+        <span class="update-count" id="update-count">6 posts</span>
+      </div>
+      <div class="refresh-info">
+        <span class="refresh-dot"></span>
+        Auto-refreshing
+      </div>
+    </div>
+
+    <!-- NEW UPDATE NOTIFICATION (hidden by default) -->
+    <div class="new-update-bar" id="new-bar" style="display:none;" onclick="loadNewUpdates()">
+      <span>↑ 1 new update — click to load</span>
+      <span class="arrow">↑</span>
+    </div>
+
+    <!-- UPDATE 1 — BREAKING -->
+    <div class="update-item is-breaking is-new" id="u1">
+      <div class="update-timeline">
+        <div class="update-time">9:41<br>AM</div>
+        <div class="timeline-dot"></div>
+        <div class="timeline-line"></div>
+      </div>
+      <div class="update-content">
+        <span class="update-badge badge-breaking">⚡ Breaking</span>
+        <h2 class="update-headline">Scheffler cards back-to-back eagles on 13 and 15 to seize the lead at −14</h2>
+        <div class="update-body">
+          <p>In a jaw-dropping stretch of golf, Scottie Scheffler holed out from the fairway on 13 for eagle, then converted a 20-foot putt on 15 to record another. He now stands at <strong>14-under par</strong> — four clear of the field with four holes remaining.</p>
+          <p>Amen Corner has rarely witnessed a more dominant performance. Playing partner Jon Rahm could only shake his head.</p>
+        </div>
+        <div class="update-footer">
+          <div>
+            <div class="update-author">James Corrigan</div>
+            <div class="update-author-title">Senior PGA Tour Correspondent</div>
+          </div>
+          <div class="update-share">
+            <button class="share-btn">Share</button>
+            <button class="share-btn">Copy link</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UPDATE 2 — KEY MOMENT -->
+    <div class="update-item is-key" id="u2">
+      <div class="update-timeline">
+        <div class="update-time">9:18<br>AM</div>
+        <div class="timeline-dot"></div>
+        <div class="timeline-line"></div>
+      </div>
+      <div class="update-content">
+        <span class="update-badge badge-key">★ Key Moment</span>
+        <h2 class="update-headline">Rory McIlroy's dream of a career Grand Slam survives a bogey scare on 12</h2>
+        <div class="update-body">
+          <p>McIlroy's tee shot on the par-3 12th — golf's most feared short hole — clipped the back bunker lip and settled six feet from the flag. His par save kept him at <strong>−10</strong>, tied for second with Xander Schauffele.</p>
+        </div>
+        <div class="update-footer">
+          <div>
+            <div class="update-author">Ryan Lavner</div>
+            <div class="update-author-title">Augusta Correspondent</div>
+          </div>
+          <div class="update-share">
+            <button class="share-btn">Share</button>
+            <button class="share-btn">Copy link</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UPDATE 3 — IMAGE UPDATE -->
+    <div class="update-item" id="u3">
+      <div class="update-timeline">
+        <div class="update-time">8:55<br>AM</div>
+        <div class="timeline-dot"></div>
+        <div class="timeline-line"></div>
+      </div>
+      <div class="update-content">
+        <h2 class="update-headline">Leaderboard snapshot: The top 10 after 27 holes</h2>
+        <div class="update-body">
+          <p>Here's how the field sits heading into the back nine of round two. The cut line is projected at +3, which would eliminate 2024 champion Jon Rahm.</p>
+          <!-- Leaderboard table mock -->
+          <div style="margin:0.75rem 0; border:1px solid var(--rule); border-radius:4px; overflow:hidden;">
+            <table style="width:100%; border-collapse:collapse; font-family:var(--font-ui); font-size:0.82rem;">
+              <thead>
+                <tr style="background:var(--forest); color:var(--white);">
+                  <th style="padding:0.5rem 0.75rem; text-align:left; font-weight:600; font-size:0.68rem; letter-spacing:0.06em;">POS</th>
+                  <th style="padding:0.5rem 0.75rem; text-align:left; font-weight:600; font-size:0.68rem; letter-spacing:0.06em;">PLAYER</th>
+                  <th style="padding:0.5rem 0.75rem; text-align:right; font-weight:600; font-size:0.68rem; letter-spacing:0.06em;">THRU</th>
+                  <th style="padding:0.5rem 0.75rem; text-align:right; font-weight:600; font-size:0.68rem; letter-spacing:0.06em;">TOT</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="background:rgba(200,245,90,0.08);">
+                  <td style="padding:0.45rem 0.75rem; color:var(--muted);">1</td>
+                  <td style="padding:0.45rem 0.75rem; font-weight:600; color:var(--ink);">S. Scheffler</td>
+                  <td style="padding:0.45rem 0.75rem; text-align:right; color:var(--muted);">F15</td>
+                  <td style="padding:0.45rem 0.75rem; text-align:right; font-weight:700; color:var(--forest);">−14</td>
+                </tr>
+                <tr style="background:var(--cream);">
+                  <td style="padding:0.45rem 0.75rem; color:var(--muted);">T2</td>
+                  <td style="padding:0.45rem 0.75rem; font-weight:600; color:var(--ink);">R. McIlroy</td>
+                  <td style="padding:0.45rem 0.75rem; text-align:right; color:var(--muted);">F12</td>
+                  <td style="padding:0.45rem 0.75rem; text-align:right; font-weight:700; color:var(--forest);">−10</td>
+                </tr>
+                <tr>
+                  <td style="padding:0.45rem 0.75rem; color:var(--muted);">T2</td>
+                  <td style="padding:0.45rem 0.75rem; font-weight:600; color:var(--ink);">X. Schauffele</td>
+                  <td style="padding:0.45rem 0.75rem; text-align:right; color:var(--muted);">F11</td>
+                  <td style="padding:0.45rem 0.75rem; text-align:right; font-weight:700; color:var(--forest);">−10</td>
+                </tr>
+                <tr style="background:var(--cream);">
+                  <td style="padding:0.45rem 0.75rem; color:var(--muted);">4</td>
+                  <td style="padding:0.45rem 0.75rem; font-weight:600; color:var(--ink);">C. Morikawa</td>
+                  <td style="padding:0.45rem 0.75rem; text-align:right; color:var(--muted);">F10</td>
+                  <td style="padding:0.45rem 0.75rem; text-align:right; font-weight:700; color:var(--forest);">−8</td>
+                </tr>
+                <tr>
+                  <td style="padding:0.45rem 0.75rem; color:var(--muted);">5</td>
+                  <td style="padding:0.45rem 0.75rem; font-weight:600; color:var(--ink);">T. Fleetwood</td>
+                  <td style="padding:0.45rem 0.75rem; text-align:right; color:var(--muted);">F9</td>
+                  <td style="padding:0.45rem 0.75rem; text-align:right; font-weight:700; color:var(--forest);">−7</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="update-footer">
+          <div>
+            <div class="update-author">Dylan Dethier</div>
+            <div class="update-author-title">Data &amp; Analytics Editor</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UPDATE 4 -->
+    <div class="update-item" id="u4">
+      <div class="update-timeline">
+        <div class="update-time">8:30<br>AM</div>
+        <div class="timeline-dot"></div>
+        <div class="timeline-line"></div>
+      </div>
+      <div class="update-content">
+        <h2 class="update-headline">Tiger Woods makes the cut on the number, sets sights on weekend run</h2>
+        <div class="update-body">
+          <p>Woods finished his second round at even par for the tournament — right on the projected cut line. In typical Tiger fashion, he made three late birdies to survive. His ability to manage Augusta's greens on surgically repaired joints remains extraordinary.</p>
+        </div>
+        <div class="update-footer">
+          <div>
+            <div class="update-author">James Corrigan</div>
+            <div class="update-author-title">Senior PGA Tour Correspondent</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UPDATE 5 -->
+    <div class="update-item" id="u5">
+      <div class="update-timeline">
+        <div class="update-time">8:05<br>AM</div>
+        <div class="timeline-dot"></div>
+        <div class="timeline-line"></div>
+      </div>
+      <div class="update-content">
+        <h2 class="update-headline">Conditions update: gusty winds up to 22 mph forecast for afternoon wave</h2>
+        <div class="update-body">
+          <p>Augusta National's groundskeeping team has been busy overnight — the course is playing firm and fast. Afternoon starters will face significantly different conditions than those who teed off at dawn. Poa greens are rolling at 13.5 on the Stimpmeter.</p>
+        </div>
+        <div class="update-footer">
+          <div>
+            <div class="update-author">Ryan Lavner</div>
+            <div class="update-author-title">Augusta Correspondent</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UPDATE 6 — FIRST POST -->
+    <div class="update-item" id="u6">
+      <div class="update-timeline">
+        <div class="update-time">7:00<br>AM</div>
+        <div class="timeline-dot"></div>
+      </div>
+      <div class="update-content">
+        <h2 class="update-headline">Welcome to GOLF.com's Masters Round 2 live coverage</h2>
+        <div class="update-body">
+          <p>Good morning from Augusta. We're live all day bringing you real-time updates from every notable grouping on the course. Bookmark this page and refresh for the latest — or leave it open, and updates will appear automatically every 30 seconds.</p>
+          <p>Scottie Scheffler enters the day at −8, three shots clear of the field. First tee time is 7:30 AM ET.</p>
+        </div>
+        <div class="update-footer">
+          <div>
+            <div class="update-author">The GOLF.com Desk</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ============================================================
+       SIDEBAR
+  ============================================================ -->
+  <aside class="blog-sidebar">
+
+    <div class="sidebar-card">
+      <div class="sidebar-card-header">Key Moments</div>
+      <div class="sidebar-card-body">
+        <ul class="key-moment-list">
+          <li class="key-moment-item" onclick="scrollTo('#u1')">
+            <span class="key-moment-time">9:41 AM</span>
+            <span class="key-moment-text">Scheffler back-to-back eagles on 13 &amp; 15</span>
+          </li>
+          <li class="key-moment-item" onclick="scrollTo('#u2')">
+            <span class="key-moment-time">9:18 AM</span>
+            <span class="key-moment-text">McIlroy survives 12th hole bogey scare</span>
+          </li>
+          <li class="key-moment-item" onclick="scrollTo('#u4')">
+            <span class="key-moment-time">8:30 AM</span>
+            <span class="key-moment-text">Tiger makes the cut on the number</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="sidebar-card">
+      <div class="sidebar-card-header">Reporting Today</div>
+      <div class="sidebar-card-body">
+        <div class="authors-list">
+          <div class="author-item">
+            <div class="author-avatar">JC</div>
+            <div class="author-info">
+              <div class="author-name">James Corrigan</div>
+              <div class="author-role">Senior PGA Tour Correspondent</div>
+            </div>
+          </div>
+          <div class="author-item">
+            <div class="author-avatar">RL</div>
+            <div class="author-info">
+              <div class="author-name">Ryan Lavner</div>
+              <div class="author-role">Augusta Correspondent</div>
+            </div>
+          </div>
+          <div class="author-item">
+            <div class="author-avatar">DD</div>
+            <div class="author-info">
+              <div class="author-name">Dylan Dethier</div>
+              <div class="author-role">Data &amp; Analytics Editor</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-card">
+      <div class="sidebar-card-header">Live Leaderboard</div>
+      <div class="sidebar-card-body" style="padding:0.75rem;">
+        <div style="font-family:var(--font-ui);font-size:0.72rem;color:var(--muted);margin-bottom:0.75rem;">Top 5 · Round 2</div>
+        <div style="display:flex;flex-direction:column;gap:0.35rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.3rem 0;border-bottom:1px solid var(--cream-dark);">
+            <span style="font-family:var(--font-ui);font-size:0.78rem;font-weight:600;color:var(--ink);">S. Scheffler</span>
+            <span style="font-family:var(--font-ui);font-size:0.82rem;font-weight:700;color:var(--forest);">−14</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.3rem 0;border-bottom:1px solid var(--cream-dark);">
+            <span style="font-family:var(--font-ui);font-size:0.78rem;font-weight:600;color:var(--ink);">R. McIlroy</span>
+            <span style="font-family:var(--font-ui);font-size:0.82rem;font-weight:700;color:var(--forest);">−10</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.3rem 0;border-bottom:1px solid var(--cream-dark);">
+            <span style="font-family:var(--font-ui);font-size:0.78rem;font-weight:600;color:var(--ink);">X. Schauffele</span>
+            <span style="font-family:var(--font-ui);font-size:0.82rem;font-weight:700;color:var(--forest);">−10</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.3rem 0;border-bottom:1px solid var(--cream-dark);">
+            <span style="font-family:var(--font-ui);font-size:0.78rem;font-weight:600;color:var(--ink);">C. Morikawa</span>
+            <span style="font-family:var(--font-ui);font-size:0.82rem;font-weight:700;color:var(--forest);">−8</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.3rem 0;">
+            <span style="font-family:var(--font-ui);font-size:0.78rem;font-weight:600;color:var(--ink);">T. Fleetwood</span>
+            <span style="font-family:var(--font-ui);font-size:0.82rem;font-weight:700;color:var(--forest);">−7</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+</div>
+
+<!-- ============================================================
+     FOOTER
+============================================================ -->
+<footer class="blog-footer">
+  GOLF.com Live Blog · Updates every 30 seconds · © 2026
+</footer>
+
+<!-- ============================================================
+     REPORTER ADMIN TOGGLE (visible only to logged-in reporters)
+============================================================ -->
+<button class="admin-toggle" onclick="toggleAdmin()" aria-label="Open reporter panel">
+  ✦ Post Update
+</button>
+
+<!-- REPORTER ADMIN PANEL -->
+<div class="admin-panel" id="admin-panel">
+  <div class="admin-panel-header">
+    <span class="admin-panel-title">Reporter Panel <span>— Masters R2</span></span>
+    <button class="admin-close" onclick="toggleAdmin()" aria-label="Close">✕</button>
+  </div>
+  <div class="admin-panel-body">
+    <div class="field-group">
+      <label class="field-label">Headline</label>
+      <input class="field-input" type="text" id="f-headline" placeholder="Short, punchy headline..." />
+    </div>
+    <div class="field-group">
+      <label class="field-label">Body</label>
+      <textarea class="field-textarea" id="f-body" placeholder="Write your update here. Keep it tight — readers are watching live."></textarea>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Update Type</label>
+      <div class="toggle-row">
+        <div class="toggle-option active-normal" id="type-normal" onclick="setType('normal')">Standard</div>
+        <div class="toggle-option" id="type-breaking" onclick="setType('breaking')">⚡ Breaking</div>
+        <div class="toggle-option" id="type-key" onclick="setType('key')">★ Key Moment</div>
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Your Byline</label>
+      <input class="field-input" type="text" id="f-author" placeholder="e.g. James Corrigan" />
+    </div>
+    <button class="submit-btn" onclick="postUpdate()">Post Update Now →</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     JAVASCRIPT — Live polling from Cloudflare Worker
+============================================================ -->
+<script>
+  // ============================================================
+  // CONFIG
+  // ============================================================
+  const WORKER_URL    = 'https://red-morning-755a.james-colgan.workers.dev';
+  const POLL_INTERVAL = 30000; // 30 seconds
+  const FULL_STORY_URL = '#';  // Replace with your full article URL
+
+  // ============================================================
+  // STATE
+  // ============================================================
+  let lastSeenId      = null;  // ID of the most recent update we've rendered
+  let knownIds        = new Set();
+  let pendingUpdates  = [];
+  let pollTimer       = null;
+
+  // ============================================================
+  // INIT
+  // ============================================================
+  document.addEventListener('DOMContentLoaded', () => {
+    updateClock();
+    setInterval(updateClock, 30000);
+    fetchUpdates(true); // true = initial load
+    pollTimer = setInterval(() => fetchUpdates(false), POLL_INTERVAL);
+  });
+
+  // ============================================================
+  // CLOCK
+  // ============================================================
+  function updateClock() {
+    const now  = new Date();
+    const opts = { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' };
+    const el   = document.getElementById('clock');
+    if (el) el.textContent = now.toLocaleTimeString('en-US', opts);
+  }
+
+  // ============================================================
+  // FETCH UPDATES FROM WORKER
+  // ============================================================
+  async function fetchUpdates(isInitialLoad) {
+    try {
+      const res  = await fetch(WORKER_URL);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (!data.updates || !data.updates.length) {
+        if (isInitialLoad) showEmptyState();
+        return;
+      }
+
+      if (isInitialLoad) {
+        // First load — render all updates and clear demo content
+        renderInitialUpdates(data.updates);
+      } else {
+        // Subsequent polls — check for updates we haven't seen yet
+        const newUpdates = data.updates.filter(u => !knownIds.has(u.id));
+        if (newUpdates.length > 0) {
+          pendingUpdates = newUpdates;
+          showNewUpdateBar(newUpdates.length);
+        }
+      }
+
+    } catch (err) {
+      console.warn('Poll error:', err.message);
+      // Fail silently — don't disrupt readers if there's a temporary hiccup
+    }
+  }
+
+  // ============================================================
+  // INITIAL RENDER — replaces demo content with real data
+  // ============================================================
+  function renderInitialUpdates(updates) {
+    const stream = document.getElementById('stream');
+
+    // Remove all existing demo update-items
+    stream.querySelectorAll('.update-item').forEach(el => el.remove());
+
+    // Update count
+    document.getElementById('update-count').textContent =
+      updates.length + (updates.length === 1 ? ' post' : ' posts');
+
+    // Render each update
+    updates.forEach((update, index) => {
+      const isLast = index === updates.length - 1;
+      stream.insertAdjacentHTML('beforeend', buildUpdateHTML(update, isLast));
+      knownIds.add(update.id);
+    });
+
+    // Track the newest
+    if (updates.length > 0) lastSeenId = updates[0].id;
+  }
+
+  // ============================================================
+  // NEW UPDATE NOTIFICATION BAR
+  // ============================================================
+  function showNewUpdateBar(count) {
+    const bar = document.getElementById('new-bar');
+    bar.querySelector('span').textContent =
+      `↑ ${count} new update${count > 1 ? 's' : ''} — click to load`;
+    bar.style.display = 'flex';
+  }
+
+  function loadNewUpdates() {
+    const bar = document.getElementById('new-bar');
+    bar.style.display = 'none';
+
+    if (!pendingUpdates.length) return;
+
+    const stream      = document.getElementById('stream');
+    const firstUpdate = stream.querySelector('.update-item');
+
+    pendingUpdates.forEach(update => {
+      const html = buildUpdateHTML(update, false);
+      if (firstUpdate) {
+        firstUpdate.insertAdjacentHTML('beforebegin', html);
+      } else {
+        stream.insertAdjacentHTML('beforeend', html);
+      }
+      knownIds.add(update.id);
+    });
+
+    // Update count
+    const total = knownIds.size;
+    document.getElementById('update-count').textContent =
+      total + (total === 1 ? ' post' : ' posts');
+
+    lastSeenId     = pendingUpdates[0].id;
+    pendingUpdates = [];
+
+    stream.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ============================================================
+  // BUILD UPDATE HTML
+  // ============================================================
+  function buildUpdateHTML(update, isLast) {
+    const typeClass = update.type === 'breaking' ? 'is-breaking'
+                    : update.type === 'key'      ? 'is-key'
+                    : '';
+
+    const badge = update.type === 'breaking'
+      ? '<span class="update-badge badge-breaking">⚡ Breaking</span>'
+      : update.type === 'key'
+      ? '<span class="update-badge badge-key">★ Key Moment</span>'
+      : '';
+
+    const timeLabel = update.timestamp
+      ? formatTime(update.timestamp)
+      : '';
+
+    // Convert newlines to paragraphs
+    const bodyParts = update.body.split('\n').filter(function(p) { return p.trim(); });
+    const bodyHTML = bodyParts.map(function(p) { return '<p>' + escapeHtml(p) + '</p>'; }).join('');
+
+    const mediaHTML = update.mediaUrl
+      ? `<div class="update-media">
+           <img src="${escapeHtml(update.mediaUrl)}" alt="${escapeHtml(update.mediaCaption || '')}" loading="lazy">
+           ${update.mediaCaption
+             ? `<div class="update-media-caption">${escapeHtml(update.mediaCaption)}</div>`
+             : ''}
+         </div>`
+      : '';
+
+    const timelineLine = isLast ? '' : '<div class="timeline-line"></div>';
+
+    return `
+      <div class="update-item ${typeClass} is-new" id="u-${update.id}">
+        <div class="update-timeline">
+          <div class="update-time">${timeLabel}</div>
+          <div class="timeline-dot"></div>
+          ${timelineLine}
+        </div>
+        <div class="update-content">
+          ${badge}
+          <h2 class="update-headline">${escapeHtml(update.headline)}</h2>
+          <div class="update-body">${bodyHTML}</div>
+          ${mediaHTML}
+          <div class="update-footer">
+            <div>
+              <div class="update-author">${escapeHtml(update.author)}</div>
+              ${update.authorTitle
+                ? `<div class="update-author-title">${escapeHtml(update.authorTitle)}</div>`
+                : ''}
+            </div>
+            <div class="update-share">
+              <button class="share-btn" onclick="copyLink('u-${update.id}')">Copy link</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ============================================================
+  // EMPTY STATE
+  // ============================================================
+  function showEmptyState() {
+    const stream = document.getElementById('stream');
+    stream.querySelectorAll('.update-item').forEach(el => el.remove());
+    stream.insertAdjacentHTML('beforeend', `
+      <div style="padding:3rem 0; text-align:center; color:var(--muted); font-family:var(--font-ui); font-size:0.9rem;">
+        No updates yet — coverage begins soon.
+      </div>`);
+  }
+
+  // ============================================================
+  // UTILITIES
+  // ============================================================
+  function formatTime(isoString) {
+    const d    = new Date(isoString);
+    const h    = d.getHours();
+    const m    = d.getMinutes().toString().padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12  = h % 12 || 12;
+    return h12 + ':' + m + '<br>' + ampm;
+  }
+
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.appendChild(document.createTextNode(str));
+    return d.innerHTML;
+  }
+
+  function copyLink(id) {
+    const url = window.location.href.split('#')[0] + '#' + id;
+    navigator.clipboard.writeText(url).then(() => {
+      alert('Link copied!');
+    }).catch(() => {
+      prompt('Copy this link:', url);
+    });
+  }
+
+  // ============================================================
+  // ADMIN PANEL (reporter-facing — remove in production
+  // or gate behind a login check)
+  // ============================================================
+  let adminOpen = false;
+  function toggleAdmin() {
+    adminOpen = !adminOpen;
+    document.getElementById('admin-panel').classList.toggle('is-open', adminOpen);
+  }
+
+  let currentType = 'normal';
+  function setType(type) {
+    currentType = type;
+    ['normal', 'breaking', 'key'].forEach(t => {
+      const el = document.getElementById('type-' + t);
+      el.className = 'toggle-option';
+      if (t === type) el.classList.add('active-' + t);
+    });
+  }
+
+  // Note: the admin panel "Post Update" button in this HTML is
+  // a visual preview only — actual posting happens via Airtable.
+  // Reporters use Airtable directly; this panel can be removed
+  // from the public-facing file.
+  function postUpdate() {
+    alert('To post a live update, open Airtable → Updates → add a new row and check Published.');
+    toggleAdmin();
+  }
+</script>
+
+</body>
+</html>

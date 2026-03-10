@@ -985,13 +985,7 @@
       <div class="sidebar-card-body">
         <div class="authors-list"></div></div>
           </div>
-          <div class="author-item">
-            <div class="author-avatar">DD</div>
-            <div class="author-info">
-              <div class="author-name">Dylan Dethier</div>
-              <div class="author-role">Data &amp; Analytics Editor</div>
-            </div>
-          </div>
+
         </div>
       </div>
     </div>
@@ -1097,9 +1091,11 @@
         return res.json();
       })
       .then(function(data) {
+        console.log('Worker response:', JSON.stringify(data).substring(0, 500));
         if (isInitialLoad) {
           if (data.updates) renderInitialUpdates(data.updates);
           if (data.config)  applyConfig(data.config);
+          else console.warn('No config in response -- check Worker cache');
         } else {
           if (!data.updates) return;
           var newOnes = [];
